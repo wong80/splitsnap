@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ bill.title|default:"Bill" }} — SplitSnap{% endblock %}
+{% block content %}
+<h1>{{ bill.title|default:"Untitled Bill" }}</h1>
+
+{% if not participant %}
+<div class="section">
+    <h2>Who are you?</h2>
+    {% if participants %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="identify">
+        <select name="participant_id">
+            <option value="">— Pick your name —</option>
+            {% for p in participants %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+        <button type="submit">I'm this person</button>
+    </form>
+    {% endif %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="identify">
+        <input name="name" placeholder="Or type your name" required>
+        <button type="submit">Add Myself</button>
+    </form>
+</div>
+{% else %}
+<p>You are: <strong>{{ participant.name }}</strong>
+    <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="identify"><button type="submit" class="secondary">Switch</button></form>
+</p>
+{% endif %}
+
+<div class="section">
+    <h2>Items</h2>
+    <table>
+        <thead><tr><th>Description</th><th>Qty</th><th>Amount</th><th>Claims</th>{% if participant %}<th>Claim</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.description }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.amount_minor }}</td>
+            <td>{% for c in item.claims.all %}{{ c.participant.name }}({{ c.weight }}) {% endfor %}</td>
+            {% if participant %}
+            <td>
+                <form method="post" style="display:inline">{% csrf_token %}
+                    <input type="hidden" name="action" value="toggle_claim">
+                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                    <button type="submit">{% if item.id in claimed_ids %}Unclaim{% else %}Claim{% endif %}</button>
+                </form>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="section">
+    <h2>Per-Person Totals</h2>
+    <table>
+        <thead><tr><th>Name</th><th>Owed</th><th>Net</th></tr></thead>
+        <tbody>
+        {% for t in person_totals %}
+        <tr><td>{{ t.name }}</td><td>{{ t.owed_display }}</td><td>{{ t.net_display }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

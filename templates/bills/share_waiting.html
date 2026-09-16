@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Waiting — SplitSnap{% endblock %}
+{% block content %}
+<h1>{{ bill.title|default:"Bill" }}</h1>
+<p>The organizer is still setting up this bill. Please check back soon.</p>
+<p hx-get="" hx-trigger="every 5s" hx-swap="outerHTML">Status: {{ bill.get_status_display }}</p>
+{% endblock %}

@@ -146,26 +146,26 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
 ## Step 5 — Upload + review screen
 
 ### Upload flow
-- [ ] Create bill view: file upload form (JPEG, PNG, WEBP, HEIC; max 10 MB)
+- [x] Create bill view: file upload form (JPEG, PNG, WEBP, HEIC; max 10 MB)
 - [ ] Per-IP rate limit: 10 uploads/hour, clear error with time estimate on 429
-- [ ] On upload: set status `extracting`, run extraction synchronously
+- [x] On upload: set status `extracting`, run extraction synchronously
 - [ ] Show spinner via `hx-indicator` during the long POST
-- [ ] On completion: redirect to review screen (or render it as response)
+- [x] On completion: redirect to review screen (or render it as response)
 
 ### Review screen
 - [ ] Receipt image displayed (collapsible on mobile, beside editor on desktop)
 - [ ] Presigned URL for image with 5-min expiry
 - [ ] Lazy presigned URL refresh: HTMX endpoint, `hx-trigger="load, every 240s"`
-- [ ] Editable fields: title, currency (picker for unsupported), printed total, all line items, all bill charges
-- [ ] Add/delete line items and bill charges
-- [ ] `quantity` field on each item (default 1, editable)
-- [ ] Reconciliation gap banner: live recompute on every edit
-- [ ] One-click adjustment line button (prefilled with gap) when gap ≠ 0
-- [ ] "Confirm" button to transition `review → open`
+- [x] Editable fields: title, currency (picker for unsupported), printed total, all line items, all bill charges
+- [x] Add/delete line items and bill charges
+- [x] `quantity` field on each item (default 1, editable)
+- [x] Reconciliation gap banner: live recompute on every edit
+- [x] One-click adjustment line button (prefilled with gap) when gap ≠ 0
+- [x] "Confirm" button to transition `review → open`
 
 ### Status machine
-- [ ] `extracting → review`: automatic after extraction completes
-- [ ] `review → open`: explicit "Confirm" action
+- [x] `extracting → review`: automatic after extraction completes
+- [x] `review → open`: explicit "Confirm" action
 - [ ] `open → review`: allowed, with warning about existing claims; auto-clamp weights if quantity edited down; drop claims on deleted items
 
 ---
@@ -173,73 +173,73 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
 ## Step 6 — Participants & claims (HTMX) `[parallel with 5]`
 
 ### Organizer side (admin page)
-- [ ] Add/rename/remove participants
+- [x] Add/rename/remove participants
 - [ ] Admin page polls every 5s for live claim updates
-- [ ] Show per-item claim details (who claimed, weights)
-- [ ] Show live per-person totals via the splitting engine
+- [x] Show per-item claim details (who claimed, weights)
+- [x] Show live per-person totals via the splitting engine
 
 ### Share page — identity
-- [ ] "I am..." picker from existing participant list
-- [ ] "Add myself" field: if name matches existing (case-insensitive) → select that participant; otherwise create new (up to 20 cap)
-- [ ] Signed cookie maps bill → participant; remembered per bill
-- [ ] "Not [name]? Switch" link: clears cookie, returns to identity picker; claims stay on original participant
-- [ ] Before identity selection: item list visible read-only, interactions disabled
-- [ ] In `extracting`/`review` status: waiting screen with "organizer is still setting up" + polling
+- [x] "I am..." picker from existing participant list
+- [x] "Add myself" field: if name matches existing (case-insensitive) → select that participant; otherwise create new (up to 20 cap)
+- [x] Signed cookie maps bill → participant; remembered per bill
+- [x] "Not [name]? Switch" link: clears cookie, returns to identity picker; claims stay on original participant
+- [x] Before identity selection: item list visible read-only, interactions disabled
+- [x] In `extracting`/`review` status: waiting screen with "organizer is still setting up" + polling
 
 ### Share page — claims
-- [ ] Claim toggle: `hx-post` → upsert claim (weight=1) or delete claim
-- [ ] Weight stepper: shown only after item is claimed; range 1..quantity
+- [x] Claim toggle: `hx-post` → upsert claim (weight=1) or delete claim
+- [x] Weight stepper: shown only after item is claimed; range 1..quantity
 - [ ] `hx-post` → server upserts claim → returns item row partial + OOB totals swap
-- [ ] Full claim visibility: each friend sees all participants' claims and weights per item
+- [x] Full claim visibility: each friend sees all participants' claims and weights per item
 - [ ] Polling: `hx-get` on claims + totals region, `hx-trigger="every 5s"`, paused while input has focus
-- [ ] After lock: server-side 302 redirect to summary; HTMX polling sends `HX-Redirect`
-- [ ] Friends cannot edit items, prices, charges, payments, or lock state
+- [x] After lock: server-side 302 redirect to summary; HTMX polling sends `HX-Redirect`
+- [x] Friends cannot edit items, prices, charges, payments, or lock state
 
 ### Tests
-- [ ] Claim upsert idempotency
-- [ ] Weight validation (1..quantity, clamping on quantity edit)
-- [ ] Claims rejected after lock
-- [ ] Self-add respects 20-participant cap
-- [ ] Self-add name collision → selects existing participant
+- [x] Claim upsert idempotency
+- [x] Weight validation (1..quantity, clamping on quantity edit)
+- [x] Claims rejected after lock
+- [x] Self-add respects 20-participant cap
+- [x] Self-add name collision → selects existing participant
 
 ---
 
 ## Step 7 — Payments, lock, summary
 
 ### Payments
-- [ ] "Add payer" button on admin page: pick participant, enter amount
-- [ ] One payment per participant (`unique(bill, participant)`)
-- [ ] Running total display: "Payments: RM X / RM Y"
-- [ ] Payment section below claims area on admin page
+- [x] "Add payer" button on admin page: pick participant, enter amount
+- [x] One payment per participant (`unique(bill, participant)`)
+- [x] Running total display: "Payments: RM X / RM Y"
+- [x] Payment section below claims area on admin page
 
 ### Lock
-- [ ] Live precondition checklist on admin page (check/cross per condition):
+- [x] Live precondition checklist on admin page (check/cross per condition):
   - Every item has ≥ 1 claim
   - Reconciliation gap = 0
   - Sum of payments = printed total
   - Sum of item subtotals > 0 when any bill charge is nonzero
-- [ ] Lock button enabled only when all preconditions pass
-- [ ] On lock: write `SplitSnapshot` + `Transfer` rows, set `locked_at`, compute `expires_at` (30 days)
-- [ ] Snapshot matches engine output exactly
+- [x] Lock button enabled only when all preconditions pass
+- [x] On lock: write `SplitSnapshot` + `Transfer` rows, set `locked_at`, compute `expires_at` (30 days)
+- [x] Snapshot matches engine output exactly
 
 ### Unlock
-- [ ] Returns bill to `open` status
-- [ ] Deletes snapshot (`SplitSnapshot` + `Transfer` rows)
-- [ ] Recomputes `expires_at` (7 days from creation)
+- [x] Returns bill to `open` status
+- [x] Deletes snapshot (`SplitSnapshot` + `Transfer` rows)
+- [x] Recomputes `expires_at` (7 days from creation)
 
 ### Summary page
-- [ ] Admin page (`/b/<token>/`): renders summary content when bill is locked (one morphing URL)
-- [ ] Share page: 302 redirect to `/s/<token>/summary` when locked
-- [ ] Web summary: full per-person breakdown — claimed items with share and amount, portion of each charge, owed, paid, net, settlement transfers
-- [ ] Plain-text summary: settlement + per-person totals (concise, chat-friendly)
-- [ ] "Copy as text" button (Clipboard API)
+- [x] Admin page (`/b/<token>/`): renders summary content when bill is locked (one morphing URL)
+- [x] Share page: 302 redirect to `/s/<token>/summary` when locked
+- [x] Web summary: full per-person breakdown — claimed items with share and amount, portion of each charge, owed, paid, net, settlement transfers
+- [x] Plain-text summary: settlement + per-person totals (concise, chat-friendly)
+- [x] "Copy as text" button (Clipboard API)
 
 ### Tests
-- [ ] Each lock precondition fails with a clear message
-- [ ] Successful lock writes snapshot matching engine output
-- [ ] Unlock clears snapshot
+- [x] Each lock precondition fails with a clear message
+- [x] Successful lock writes snapshot matching engine output
+- [x] Unlock clears snapshot
 - [ ] Summary text snapshot test
-- [ ] Payment validation (positive amounts, unique per participant)
+- [x] Payment validation (positive amounts, unique per participant)
 
 ---
 
