@@ -12,12 +12,12 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
 - [x] `/healthz` endpoint with DB check in `core/`
 - [x] `splitting/` pure Python package (stubs)
 - [x] `bills/`, `receipts/` Django apps created
-- [ ] Add `ruff` config to `pyproject.toml` (linting + formatting)
-- [ ] Add `pytest` + `pytest-django` config to `pyproject.toml`
-- [ ] `conftest.py` with Django settings override for tests
-- [ ] GitHub Actions `ci.yml`: ruff check, ruff format --check, migrations check, pytest with Postgres service
-- [ ] `render.yaml` Blueprint: web service, Postgres, cron job placeholder
-- [ ] Deploy "hello" to Render with auto-deploy on CI pass
+- [x] Add `ruff` config to `pyproject.toml` (linting + formatting)
+- [x] Add `pytest` + `pytest-django` config to `pyproject.toml`
+- [x] `conftest.py` with Django settings override for tests
+- [x] GitHub Actions `ci.yml`: ruff check, ruff format --check, migrations check, pytest with Postgres service
+- [x] `render.yaml` Blueprint: web service, Postgres, cron job placeholder
+- [-] Deploy "hello" to Render with auto-deploy on CI pass
 
 ---
 
