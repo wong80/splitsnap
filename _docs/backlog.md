@@ -296,12 +296,12 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
 
 ## Step 11 — Hardening & docs
 
-- [ ] Add `django-ratelimit` to dependencies; wire rate limiting on upload endpoint
-- [ ] `manage.py check --deploy` clean with prod settings
-- [ ] Security headers: `SECURE_*` settings, HSTS, secure cookies
-- [ ] CSRF via `hx-headers` on `<body>` for all HTMX POSTs
-- [ ] Custom 404 error page (generic, covers purged bills)
-- [ ] Custom 500 error page
-- [ ] Add `whitenoise` for static file serving; configure `STATIC_ROOT`
-- [ ] Add `gunicorn` to dependencies; configure in `render.yaml`
-- [ ] README: setup instructions, env vars, architecture overview, trade-offs
+- [x] Add `django-ratelimit` to dependencies; wire rate limiting on upload endpoint
+- [x] `manage.py check --deploy` clean with prod settings
+- [x] Security headers: `SECURE_*` settings, HSTS, secure cookies
+- [x] CSRF via `hx-headers` on `<body>` for all HTMX POSTs
+- [x] Custom 404 error page (generic, covers purged bills)
+- [x] Custom 500 error page
+- [x] Add `whitenoise` for static file serving; configure `STATIC_ROOT`
+- [x] Add `gunicorn` to dependencies; configure in `render.yaml`
+- [x] README: setup instructions, env vars, architecture overview, trade-offs

@@ -8,6 +8,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
+from django_ratelimit.decorators import ratelimit
 
 from splitting.engine import Charge, Item, PaymentEntry, compute_shares
 from splitting.money import to_display, to_minor
@@ -112,6 +113,7 @@ def _person_totals(bill: Bill, shares) -> list[dict]:
 # --- Upload flow (Step 5) ---
 
 
+@ratelimit(key="ip", rate="10/h", method="POST", block=True)
 @require_http_methods(["GET", "POST"])
 def upload(request: HttpRequest) -> HttpResponse:
     if request.method == "GET":
