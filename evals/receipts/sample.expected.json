@@ -1,0 +1,13 @@
+{
+  "currency": "MYR",
+  "printed_total": "25.40",
+  "items": [
+    {"description": "Nasi Lemak", "quantity": 1, "amount": "12.00", "item_discount": "0"},
+    {"description": "Teh Tarik", "quantity": 2, "amount": "6.40", "item_discount": "0"}
+  ],
+  "charges": [
+    {"kind": "tax", "label": "SST 6%", "amount": "1.10"},
+    {"kind": "service_charge", "label": "Service 10%", "amount": "1.84"},
+    {"kind": "rounding", "label": "Rounding", "amount": "-0.02"}
+  ]
+}

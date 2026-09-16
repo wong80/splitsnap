@@ -1,0 +1,35 @@
+name: Receipt Eval
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * *"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run eval
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.dev
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RECEIPT_EXTRACTOR: anthropic
+        run: uv run python manage.py eval_receipts
+
+      - name: Write job summary
+        if: always()
+        run: |
+          if [ -f evals/receipts/eval_summary.md ]; then
+            cat evals/receipts/eval_summary.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No eval summary generated." >> $GITHUB_STEP_SUMMARY
+          fi

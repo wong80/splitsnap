@@ -282,14 +282,14 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
 ## Step 10 — Golden-set eval
 
 - [ ] Collect and redact 10–15 receipt images (`evals/receipts/<name>.jpg`)
-- [ ] Write expected JSON per receipt (`evals/receipts/<name>.expected.json`)
-- [ ] `eval_receipts` management command reporting:
+- [x] Write expected JSON per receipt (`evals/receipts/<name>.expected.json`)
+- [x] `eval_receipts` management command reporting:
   - Printed-total exact-match rate
   - Currency accuracy
   - Item-level precision and recall (amount exact, description fuzzy-matched)
   - Reconciliation pass rate
   - Average attempts, latency, token usage
-- [ ] GitHub Actions `eval.yml`: manual trigger + nightly, writes Markdown job summary
+- [x] GitHub Actions `eval.yml`: manual trigger + nightly, writes Markdown job summary
 - [ ] Baseline recording before any prompt/model change
 
 ---
