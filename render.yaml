@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: splitsnap
+    runtime: python
+    buildCommand: |
+      pip install uv
+      uv sync --frozen --no-dev
+      uv run python manage.py collectstatic --noinput
+      uv run python manage.py migrate
+    startCommand: uv run gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RECEIPT_EXTRACTOR
+        value: anthropic
+      - key: PYTHON_VERSION
+        value: "3.12"
+    healthCheckPath: /healthz
+    autoDeploy: true
+
+databases:
+  - name: splitsnap-db
+    plan: free
+    databaseName: splitsnap
+    user: splitsnap
+
+cronJobs:
+  - name: purge-expired-bills
+    schedule: "0 3 * * *"
+    command: uv run python manage.py purge_expired_bills
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.prod
