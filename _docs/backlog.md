@@ -94,47 +94,47 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
 ## Step 4 — Extraction module `[parallel with 2, 3]`
 
 ### Image preparation (`receipts/images.py`)
-- [ ] Decode with Pillow; HEIC via pillow-heif
-- [ ] Reject non-image files regardless of extension
-- [ ] Correct rotation from EXIF orientation tag, then strip all EXIF (GPS removed)
-- [ ] Downscale longest edge to ≤ 1568 px, re-encode as JPEG
-- [ ] Add `pillow` and `pillow-heif` to dependencies
+- [x] Decode with Pillow; HEIC via pillow-heif
+- [x] Reject non-image files regardless of extension
+- [x] Correct rotation from EXIF orientation tag, then strip all EXIF (GPS removed)
+- [x] Downscale longest edge to ≤ 1568 px, re-encode as JPEG
+- [x] Add `pillow` and `pillow-heif` to dependencies
 
 ### Schema (`receipts/schema.py`)
-- [ ] Pydantic `ExtractedReceipt` model: items (description, quantity, amount as decimal string, item_discount), charges (kind, label, amount), printed_total, currency, title
-- [ ] Decimal string → minor unit conversion using currency exponent
-- [ ] Reject excess precision
-- [ ] Flag unsupported currencies (don't reject — pass through for review screen picker)
+- [x] Pydantic `ExtractedReceipt` model: items (description, quantity, amount as decimal string, item_discount), charges (kind, label, amount), printed_total, currency, title
+- [x] Decimal string → minor unit conversion using currency exponent
+- [x] Reject excess precision
+- [x] Flag unsupported currencies (don't reject — pass through for review screen picker)
 
 ### Extraction (`receipts/extraction.py`)
-- [ ] `ReceiptExtractor` protocol with `extract(image, feedback=None)` signature
-- [ ] `AnthropicExtractor`: Anthropic Messages API with vision, structured JSON output, `RECEIPT_MODEL` env var
-- [ ] `FakeExtractor`: returns fixtures for tests and local dev (`RECEIPT_EXTRACTOR=fake`)
-- [ ] Prompt in `receipts/prompts/extract_v1.md` — extract items, charges, printed total, currency, title (restaurant/shop name)
-- [ ] Store `prompt_version` on Bill
-- [ ] SDK call timeout: 45s
-- [ ] Add `anthropic` and `pydantic` to dependencies
+- [x] `ReceiptExtractor` protocol with `extract(image, feedback=None)` signature
+- [x] `AnthropicExtractor`: Anthropic Messages API with vision, structured JSON output, `RECEIPT_MODEL` env var
+- [x] `FakeExtractor`: returns fixtures for tests and local dev (`RECEIPT_EXTRACTOR=fake`)
+- [x] Prompt in `receipts/prompts/extract_v1.md` — extract items, charges, printed total, currency, title (restaurant/shop name)
+- [x] Store `prompt_version` on Bill
+- [x] SDK call timeout: 45s
+- [x] Add `anthropic` and `pydantic` to dependencies
 
 ### Reconciliation & retry (`receipts/validation.py`)
-- [ ] Compute gap: `sum(item nets) + sum(charges) − printed_total`
-- [ ] If gap ≠ 0 and attempts < 2: retry with feedback ("items sum to X but printed total is Y")
-- [ ] Retry fully replaces attempt 1's items and charges
-- [ ] If gap still ≠ 0 after retry: set status to `review`, surface gap
-- [ ] Invalid schema response counts as a failed attempt
-- [ ] Never more than 2 LLM calls per upload
-- [ ] Unsupported currency: not a schema error, bill enters `review` with items intact
-- [ ] Both attempts fail: bill enters `review` with empty items
-- [ ] Title extraction fallback: date-based title if LLM doesn't extract one
+- [x] Compute gap: `sum(item nets) + sum(charges) − printed_total`
+- [x] If gap ≠ 0 and attempts < 2: retry with feedback ("items sum to X but printed total is Y")
+- [x] Retry fully replaces attempt 1's items and charges
+- [x] If gap still ≠ 0 after retry: set status to `review`, surface gap
+- [x] Invalid schema response counts as a failed attempt
+- [x] Never more than 2 LLM calls per upload
+- [x] Unsupported currency: not a schema error, bill enters `review` with items intact
+- [x] Both attempts fail: bill enters `review` with empty items
+- [x] Title extraction fallback: date-based title if LLM doesn't extract one
 
 ### Tests (`tests/receipts/`)
-- [ ] HEIC fixture decodes correctly
-- [ ] EXIF stripped (no GPS tag in output)
-- [ ] Resize bounds hold (longest edge ≤ 1568)
-- [ ] Non-image files rejected
-- [ ] Decimal strings convert correctly to minor units
-- [ ] Excess precision rejected
-- [ ] Unsupported currency flagged (not rejected)
-- [ ] Retry logic (mocked extractor):
+- [x] HEIC fixture decodes correctly
+- [x] EXIF stripped (no GPS tag in output)
+- [x] Resize bounds hold (longest edge ≤ 1568)
+- [x] Non-image files rejected
+- [x] Decimal strings convert correctly to minor units
+- [x] Excess precision rejected
+- [x] Unsupported currency flagged (not rejected)
+- [x] Retry logic (mocked extractor):
   - Match on first call → one call total
   - Mismatch then match → two calls, feedback contains gap
   - Mismatch twice → two calls, `review` status, gap surfaced

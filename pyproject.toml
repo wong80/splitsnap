@@ -5,8 +5,11 @@ description = "Snap a receipt, split the bill."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic>=1.6.0",
     "django>=5.2,<5.3",
     "pillow>=12.3.0",
+    "pillow-heif>=1.7.0",
+    "pydantic>=2.13.5",
 ]
 
 [dependency-groups]
