@@ -138,12 +138,14 @@ def upload(request: HttpRequest) -> HttpResponse:
     extractor = get_extractor()
     result = run_extraction(image_data, extractor)
 
+    now = timezone.now()
     bill = Bill.objects.create(
         title=result.receipt.title,
         currency=result.receipt.currency.upper(),
         status=BillStatus.REVIEW,
         extraction_attempts=result.attempts,
         prompt_version="extract_v1",
+        expires_at=now + datetime.timedelta(days=7),
     )
 
     if result.receipt.printed_total:

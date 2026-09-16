@@ -6,6 +6,8 @@ import uuid
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from .storage import receipt_upload_path
+
 
 def generate_token() -> str:
     return secrets.token_hex(32)
@@ -36,7 +38,7 @@ class Bill(models.Model):
     status = models.CharField(
         max_length=20, choices=BillStatus.choices, default=BillStatus.EXTRACTING
     )
-    receipt_image = models.ImageField(upload_to="receipts/", blank=True)
+    receipt_image = models.ImageField(upload_to=receipt_upload_path, blank=True)
     printed_total_minor = models.IntegerField(default=0)
     extraction_attempts = models.PositiveSmallIntegerField(default=0)
     prompt_version = models.CharField(max_length=50, blank=True, default="")

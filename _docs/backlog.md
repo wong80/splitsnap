@@ -245,22 +245,22 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
 
 ## Step 8 — Storage & retention `[parallel with 9]`
 
-- [ ] Add `django-storages[s3]` and `boto3` to dependencies
-- [ ] Configure R2 via `django-storages` in prod settings (private bucket, S3 API)
-- [ ] Receipt images stored under random keys in R2
-- [ ] Presigned URL generation (5-min expiry) for image display
-- [ ] `purge_expired_bills` management command:
+- [x] Add `django-storages[s3]` and `boto3` to dependencies
+- [x] Configure R2 via `django-storages` in prod settings (private bucket, S3 API)
+- [x] Receipt images stored under random keys in R2
+- [x] Presigned URL generation (5-min expiry) for image display
+- [x] `purge_expired_bills` management command:
   - Delete unlocked bills older than 7 days from creation
   - Delete locked bills older than 30 days from lock
   - Delete associated R2 objects
-- [ ] Render cron job in `render.yaml` (daily)
+- [x] Render cron job in `render.yaml` (daily)
 - [ ] R2 lifecycle rule (45 days) as backstop for orphaned images
-- [ ] `expires_at` recomputed on lock (30 days) and unlock (7 days from creation)
+- [x] `expires_at` recomputed on lock (30 days) and unlock (7 days from creation)
 
 ### Tests
-- [ ] Expired bills and storage objects deleted (storage mocked)
-- [ ] Non-expired bills untouched
-- [ ] `expires_at` correctly set on lock and unlock
+- [x] Expired bills and storage objects deleted (storage mocked)
+- [x] Non-expired bills untouched
+- [x] `expires_at` correctly set on lock and unlock
 
 ---
 
