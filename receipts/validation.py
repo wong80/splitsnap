@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import datetime
+import logging
+import time
 from dataclasses import dataclass
 
 from splitting.money import to_minor
 
 from .extraction import ReceiptExtractor
 from .schema import ExtractedReceipt, is_supported_currency
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -28,6 +32,21 @@ def compute_gap(receipt: ExtractedReceipt, currency: str) -> int:
     return item_total + charge_total - printed
 
 
+def _log_extraction(result: ExtractionResult, latency_ms: int) -> None:
+    outcome = "match" if result.gap == 0 else "mismatch"
+    if not result.currency_supported:
+        outcome = "unsupported_currency"
+    logger.info(
+        "receipt.extraction.completed",
+        extra={
+            "attempts": result.attempts,
+            "gap": result.gap,
+            "outcome": outcome,
+            "latency_ms": latency_ms,
+        },
+    )
+
+
 def run_extraction(
     image: bytes,
     extractor: ReceiptExtractor,
@@ -36,6 +55,7 @@ def run_extraction(
     receipt: ExtractedReceipt | None = None
     gap = 0
     currency_supported = True
+    t0 = time.monotonic()
 
     for attempt in range(2):
         attempts = attempt + 1
@@ -56,13 +76,15 @@ def run_extraction(
         currency_supported = is_supported_currency(currency)
 
         if not currency_supported:
-            return ExtractionResult(
+            result = ExtractionResult(
                 receipt=receipt,
                 attempts=attempts,
                 gap=0,
                 status="review",
                 currency_supported=False,
             )
+            _log_extraction(result, int((time.monotonic() - t0) * 1000))
+            return result
 
         try:
             gap = compute_gap(receipt, currency)
@@ -75,13 +97,15 @@ def run_extraction(
                 receipt = receipt.model_copy(
                     update={"title": f"Receipt {datetime.date.today().isoformat()}"}
                 )
-            return ExtractionResult(
+            result = ExtractionResult(
                 receipt=receipt,
                 attempts=attempts,
                 gap=0,
                 status="review",
                 currency_supported=True,
             )
+            _log_extraction(result, int((time.monotonic() - t0) * 1000))
+            return result
 
     if receipt is None:
         receipt = ExtractedReceipt(title=f"Receipt {datetime.date.today().isoformat()}")
@@ -91,10 +115,12 @@ def run_extraction(
             update={"title": f"Receipt {datetime.date.today().isoformat()}"}
         )
 
-    return ExtractionResult(
+    result = ExtractionResult(
         receipt=receipt,
         attempts=attempts,
         gap=gap,
         status="review",
         currency_supported=currency_supported,
     )
+    _log_extraction(result, int((time.monotonic() - t0) * 1000))
+    return result

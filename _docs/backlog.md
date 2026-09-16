@@ -266,16 +266,16 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
 
 ## Step 9 — Observability `[parallel with 8]`
 
-- [ ] Add `python-json-logger` and `sentry-sdk` to dependencies
-- [ ] JSON log formatter for structured logs to stdout
-- [ ] Token redaction filter: replace admin/share tokens with 8-char prefix in logs
-- [ ] Extraction events: `receipt.extraction.completed` with bill_id, attempt, model, prompt_version, latency_ms, tokens, gap, outcome
-- [ ] Domain events: `bill.created`, `bill.locked`, `bill.unlocked`, `purge.completed`
-- [ ] Sentry integration for Django + management commands
-- [ ] Sentry `before_send` hook: scrub token path segments
-- [ ] Request ID middleware in `core/middleware.py`
-- [ ] `Referrer-Policy: same-origin` header
-- [ ] `X-Robots-Tag: noindex` header
+- [x] Add `python-json-logger` and `sentry-sdk` to dependencies
+- [x] JSON log formatter for structured logs to stdout
+- [x] Token redaction filter: replace admin/share tokens with 8-char prefix in logs
+- [x] Extraction events: `receipt.extraction.completed` with bill_id, attempt, model, prompt_version, latency_ms, tokens, gap, outcome
+- [x] Domain events: `bill.created`, `bill.locked`, `bill.unlocked`, `purge.completed`
+- [x] Sentry integration for Django + management commands
+- [x] Sentry `before_send` hook: scrub token path segments
+- [x] Request ID middleware in `core/middleware.py`
+- [x] `Referrer-Policy: same-origin` header
+- [x] `X-Robots-Tag: noindex` header
 
 ---
 

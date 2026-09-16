@@ -1,6 +1,8 @@
 import os
+import re
 
 import dj_database_url
+import sentry_sdk
 
 from .base import *  # noqa: F401, F403
 
@@ -24,6 +26,59 @@ CSRF_COOKIE_SECURE = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 RECEIPT_EXTRACTOR = os.environ.get("RECEIPT_EXTRACTOR", "anthropic")
+
+# --- Sentry ---
+_TOKEN_RE = re.compile(r"/[bs]/([0-9a-f]{16,64})/")
+
+
+def _scrub_tokens(event, hint):
+    if request := event.get("request"):
+        for key in ("url", "path_info"):
+            if val := request.get(key):
+                request[key] = _TOKEN_RE.sub(
+                    lambda m: m.group().replace(m.group(1), m.group(1)[:8] + "..."),
+                    val,
+                )
+    return event
+
+
+if _dsn := os.environ.get("SENTRY_DSN"):
+    sentry_sdk.init(
+        dsn=_dsn,
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_RATE", "0.1")),
+        before_send=_scrub_tokens,
+    )
+
+# --- Logging ---
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "token_redaction": {"()": "core.logging.TokenRedactionFilter"},
+    },
+    "formatters": {
+        "json": {
+            "()": "pythonjsonlogger.json.JsonFormatter",
+            "fmt": "%(asctime)s %(name)s %(levelname)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+            "filters": ["token_redaction"],
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "bills": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "receipts": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
 
 # --- Cloudflare R2 storage ---
 STORAGES = {

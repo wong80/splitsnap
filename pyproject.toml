@@ -13,6 +13,8 @@ dependencies = [
     "pillow>=12.3.0",
     "pillow-heif>=1.7.0",
     "pydantic>=2.13.5",
+    "python-json-logger>=4.2.0",
+    "sentry-sdk>=2.69.2",
 ]
 
 [dependency-groups]

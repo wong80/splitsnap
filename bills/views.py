@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import logging
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -24,6 +25,8 @@ from .models import (
     SplitSnapshot,
     Transfer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _bill_context(bill: Bill) -> dict:
@@ -178,6 +181,7 @@ def upload(request: HttpRequest) -> HttpResponse:
         kind = charge.kind if charge.kind in dict(ChargeKind.choices) else "other"
         BillCharge.objects.create(bill=bill, kind=kind, label=charge.label, amount_minor=amount)
 
+    logger.info("bill.created", extra={"bill_id": str(bill.id), "currency": bill.currency})
     return redirect("admin-bill-detail", admin_token=bill.admin_token)
 
 
@@ -417,6 +421,7 @@ def _handle_lock(request: HttpRequest, bill: Bill) -> HttpResponse:
     bill.locked_at = now
     bill.expires_at = now + datetime.timedelta(days=30)
     bill.save(update_fields=["status", "locked_at", "expires_at"])
+    logger.info("bill.locked", extra={"bill_id": str(bill.id)})
     return redirect("admin-bill-detail", admin_token=bill.admin_token)
 
 
@@ -430,6 +435,7 @@ def _handle_unlock(request: HttpRequest, bill: Bill) -> HttpResponse:
     bill.locked_at = None
     bill.expires_at = bill.created_at + datetime.timedelta(days=7)
     bill.save(update_fields=["status", "locked_at", "expires_at"])
+    logger.info("bill.unlocked", extra={"bill_id": str(bill.id)})
     return redirect("admin-bill-detail", admin_token=bill.admin_token)
 
 
