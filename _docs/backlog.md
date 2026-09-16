@@ -24,25 +24,25 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
 ## Step 2 — Splitting engine `[parallel with 3, 4]`
 
 ### `splitting/money.py`
-- [ ] Currency whitelist with ISO 4217 minor-unit exponents (MYR, SGD, USD, THB=2; JPY, KRW=0; extend as needed)
-- [ ] `Decimal` string to minor-unit integer conversion (reject excess precision)
-- [ ] Minor-unit integer to display string formatting (e.g. `2350` → `"23.50"`)
-- [ ] Currency symbol/code lookup for display
+- [x] Currency whitelist with ISO 4217 minor-unit exponents (MYR, SGD, USD, THB=2; JPY, KRW=0; extend as needed)
+- [x] `Decimal` string to minor-unit integer conversion (reject excess precision)
+- [x] Minor-unit integer to display string formatting (e.g. `2350` → `"23.50"`)
+- [x] Currency symbol/code lookup for display
 
 ### `splitting/engine.py`
-- [ ] `allocate(total_minor, weights)` — largest-remainder split, ties broken by participant ID ascending
-- [ ] `compute_shares(items, charges, payments)` — full allocation pipeline:
+- [x] `allocate(total_minor, weights)` — largest-remainder split, ties broken by participant ID ascending
+- [x] `compute_shares(items, charges, payments)` — full allocation pipeline:
   - Allocate each item's net amount (`amount - item_discount`) by claim weights
   - Compute per-person item subtotal
   - Allocate each bill charge by subtotals (absolute value, then re-sign for negatives)
   - `owed = subtotal + charges`; `net = paid - owed`
 
 ### `splitting/settle.py`
-- [ ] `settle(net_balances)` — greedy matching: largest debtor pays largest creditor, repeat
-- [ ] Guarantee: ≤ n−1 transfers, all amounts > 0, applying transfers zeroes all balances
+- [x] `settle(net_balances)` — greedy matching: largest debtor pays largest creditor, repeat
+- [x] Guarantee: ≤ n−1 transfers, all amounts > 0, applying transfers zeroes all balances
 
 ### Tests (`tests/splitting/`)
-- [ ] Named case tests (table-driven):
+- [x] Named case tests (table-driven):
   - 10.00 split three ways → 3.34 / 3.33 / 3.33
   - Weights 2:1 on one item
   - Item discount
@@ -52,14 +52,14 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
   - JPY bill (exponent 0)
   - Two payers, three debtors
   - Negative owed (large voucher, small item subtotal — person becomes creditor)
-- [ ] Hypothesis property tests:
+- [x] Hypothesis property tests:
   - `sum(owed) == bill_total` always
   - `sum(allocate(t, w)) == t` for any `t` and positive weights
   - Each allocation off by < 1 minor unit from exact proportion
   - Deterministic: same input → same output; shuffled input order → same result
   - Non-negative owed when all bill-level lines ≥ 0
   - Settlement: transfers zero all nets, `len(transfers) ≤ n−1`, all amounts > 0
-- [ ] Coverage gate: 95% on `splitting/`
+- [x] Coverage gate: 95% on `splitting/`
 
 ---
 
