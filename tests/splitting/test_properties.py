@@ -1,9 +1,8 @@
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from splitting.engine import Charge, Item, PaymentEntry, allocate, compute_shares
+from splitting.engine import Charge, Item, allocate, compute_shares
 from splitting.settle import settle
-
 
 pid_strategy = st.integers(min_value=1, max_value=100)
 weight_strategy = st.integers(min_value=1, max_value=10)
@@ -77,22 +76,18 @@ class TestComputeSharesProperties:
     @settings(max_examples=100)
     def test_non_negative_owed_no_negative_charges(self, items):
         result = compute_shares(items, [], [])
-        for pid, owed in result.owed.items():
+        for _pid, owed in result.owed.items():
             assert owed >= 0
 
 
 @st.composite
 def balanced_balances(draw):
     n = draw(st.integers(min_value=2, max_value=10))
-    pids = draw(
-        st.lists(pid_strategy, min_size=n, max_size=n, unique=True)
-    )
+    pids = draw(st.lists(pid_strategy, min_size=n, max_size=n, unique=True))
     values = [draw(st.integers(min_value=-10_000, max_value=10_000)) for _ in range(n - 1)]
     values.append(-sum(values))
-    from hypothesis import assume
-
     assume(any(v != 0 for v in values))
-    return dict(zip(pids, values))
+    return dict(zip(pids, values, strict=True))
 
 
 class TestSettleProperties:

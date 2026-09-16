@@ -100,7 +100,9 @@ def compute_shares(
                 continue
             charge_weights = [(pid, 1) for pid in sorted(all_pids)]
         else:
-            charge_weights = [(pid, subtotal_abs[pid]) for pid in sorted(all_pids) if subtotal_abs[pid] > 0]
+            charge_weights = [
+                (pid, subtotal_abs[pid]) for pid in sorted(all_pids) if subtotal_abs[pid] > 0
+            ]
         if not charge_weights:
             continue
         shares = allocate(ch.amount_minor, charge_weights)
@@ -116,4 +118,6 @@ def compute_shares(
         owed[pid] = item_subtotals[pid] + charge_totals[pid]
 
     net = {pid: paid[pid] - owed[pid] for pid in all_pids}
-    return ShareResult(owed=owed, net=net, item_subtotals=item_subtotals, charge_totals=charge_totals)
+    return ShareResult(
+        owed=owed, net=net, item_subtotals=item_subtotals, charge_totals=charge_totals
+    )

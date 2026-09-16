@@ -1,6 +1,6 @@
 import pytest
 
-from splitting.engine import Charge, Item, PaymentEntry, ShareResult, allocate, compute_shares
+from splitting.engine import Charge, Item, PaymentEntry, allocate, compute_shares
 
 
 class TestAllocate:
@@ -150,6 +150,7 @@ class TestComputeShares:
         ]
         payments = [PaymentEntry(participant_id=1, amount_minor=740)]
         result = compute_shares(items, charges, payments)
-        assert sum(result.owed.values()) == sum(it.amount_minor - it.discount_minor for it in items) + sum(
+        expected_total = sum(it.amount_minor - it.discount_minor for it in items) + sum(
             ch.amount_minor for ch in charges
         )
+        assert sum(result.owed.values()) == expected_total

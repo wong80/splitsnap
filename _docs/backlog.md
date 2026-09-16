@@ -66,28 +66,28 @@ Status: `[ ]` todo · `[x]` done · `[-]` skipped
 ## Step 3 — Models & token routing `[parallel with 2, 4]`
 
 ### Models (`bills/models.py`)
-- [ ] `Bill`: UUID pk, `admin_token` (unique, 256-bit), `share_token` (unique, 256-bit), `title`, `currency`, `status` (`extracting`/`review`/`open`/`locked`), `receipt_image`, `printed_total_minor`, `extraction_attempts`, `prompt_version`, timestamps (`created_at`, `locked_at`, `expires_at`)
-- [ ] `LineItem`: FK to Bill, `position`, `description`, `quantity` (default 1), `amount_minor` (≥0), `item_discount_minor` (0..amount)
-- [ ] `BillCharge`: FK to Bill, `kind` enum (`discount`/`service_charge`/`tax`/`rounding`/`adjustment`/`other`), `label`, `amount_minor` (signed)
-- [ ] `Participant`: FK to Bill, `name` (case-insensitive unique per bill, whitespace-trimmed)
-- [ ] `ItemClaim`: FK to LineItem + Participant, `weight` (1..quantity), unique together
-- [ ] `Payment`: FK to Bill + Participant, `amount_minor` (>0), unique together
-- [ ] `SplitSnapshot` (renamed from ShareResult): FK to Bill + Participant, `items_minor`, `charges_minor` (JSON), `owed_minor`, `paid_minor`
-- [ ] `Transfer`: FK to Bill + from/to Participant, `amount_minor` (>0)
-- [ ] Soft cap validation: max 20 participants per bill
+- [x] `Bill`: UUID pk, `admin_token` (unique, 256-bit), `share_token` (unique, 256-bit), `title`, `currency`, `status` (`extracting`/`review`/`open`/`locked`), `receipt_image`, `printed_total_minor`, `extraction_attempts`, `prompt_version`, timestamps (`created_at`, `locked_at`, `expires_at`)
+- [x] `LineItem`: FK to Bill, `position`, `description`, `quantity` (default 1), `amount_minor` (≥0), `item_discount_minor` (0..amount)
+- [x] `BillCharge`: FK to Bill, `kind` enum (`discount`/`service_charge`/`tax`/`rounding`/`adjustment`/`other`), `label`, `amount_minor` (signed)
+- [x] `Participant`: FK to Bill, `name` (case-insensitive unique per bill, whitespace-trimmed)
+- [x] `ItemClaim`: FK to LineItem + Participant, `weight` (1..quantity), unique together
+- [x] `Payment`: FK to Bill + Participant, `amount_minor` (>0), unique together
+- [x] `SplitSnapshot` (renamed from ShareResult): FK to Bill + Participant, `items_minor`, `charges_minor` (JSON), `owed_minor`, `paid_minor`
+- [x] `Transfer`: FK to Bill + from/to Participant, `amount_minor` (>0)
+- [x] Soft cap validation: max 20 participants per bill
 
 ### Token routing & access control
-- [ ] URL resolvers: `/b/<admin_token>/...` (admin), `/s/<share_token>/...` (share)
-- [ ] Lookup middleware/mixin: resolve token → Bill, 404 on unknown
-- [ ] Access control: share token can only POST to claim/weight/self-add endpoints; all other writes require admin token
-- [ ] Admin token never appears in share-page HTML responses
+- [x] URL resolvers: `/b/<admin_token>/...` (admin), `/s/<share_token>/...` (share)
+- [x] Lookup middleware/mixin: resolve token → Bill, 404 on unknown
+- [x] Access control: share token can only POST to claim/weight/self-add endpoints; all other writes require admin token
+- [x] Admin token never appears in share-page HTML responses
 
 ### Tests (`tests/bills/`)
-- [ ] Token generation produces 256-bit tokens
-- [ ] Unknown token → 404
-- [ ] Share token POST to item/price/charge/payment/lock → 403 or 404
-- [ ] Admin token not leaked in share-page responses
-- [ ] Migrations generated and checked
+- [x] Token generation produces 256-bit tokens
+- [x] Unknown token → 404
+- [x] Share token POST to item/price/charge/payment/lock → 403 or 404
+- [x] Admin token not leaked in share-page responses
+- [x] Migrations generated and checked
 
 ---
 
