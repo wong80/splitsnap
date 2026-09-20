@@ -46,7 +46,7 @@ addopts = "--strict-markers -q"
 
 [tool.coverage.run]
 source = ["splitting", "receipts", "bills", "core"]
-omit = ["*/migrations/*", "*/tests/*"]
+omit = ["*/migrations/*", "*/tests/*", "*/management/commands/eval_*"]
 
 [tool.coverage.report]
 show_missing = true
