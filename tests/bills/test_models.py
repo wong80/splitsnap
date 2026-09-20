@@ -41,6 +41,7 @@ class TestBill:
 
     def test_tokens_are_256_bit(self, bill):
         import base64
+
         assert len(base64.urlsafe_b64decode(bill.admin_token + "=")) == 32
         assert len(base64.urlsafe_b64decode(bill.share_token + "=")) == 32
 

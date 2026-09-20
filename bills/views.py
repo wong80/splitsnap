@@ -425,11 +425,13 @@ def _handle_lock(request: HttpRequest, bill: Bill) -> HttpResponse:
         for i, ch in enumerate(charges_list):
             amount = shares.charge_allocations[i].get(pid, 0)
             if amount != 0:
-                per_charge.append({
-                    "kind": ch.kind,
-                    "label": ch.label or ch.get_kind_display(),
-                    "amount": amount,
-                })
+                per_charge.append(
+                    {
+                        "kind": ch.kind,
+                        "label": ch.label or ch.get_kind_display(),
+                        "amount": amount,
+                    }
+                )
         SplitSnapshot.objects.create(
             bill=bill,
             participant=participant,
