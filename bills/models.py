@@ -10,7 +10,7 @@ from .storage import receipt_upload_path
 
 
 def generate_token() -> str:
-    return secrets.token_hex(32)
+    return secrets.token_urlsafe(32)
 
 
 class BillStatus(models.TextChoices):

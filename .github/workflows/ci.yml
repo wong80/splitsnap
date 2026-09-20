@@ -45,5 +45,12 @@ jobs:
       - run: uv sync --group dev
       - run: uv run python manage.py makemigrations --check --dry-run
       - run: uv run python manage.py check
+      - name: Deploy checks
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.prod
+          DJANGO_SECRET_KEY: ci-only-dummy-key
+          ALLOWED_HOSTS: localhost
+          DATABASE_URL: postgres://splitsnap:test@localhost:5432/splitsnap_test
+        run: uv run python manage.py check --deploy
       - run: uv run coverage run -m pytest
       - run: uv run coverage report

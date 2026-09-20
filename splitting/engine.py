@@ -50,6 +50,7 @@ class ShareResult:
     net: dict[int, int]
     item_subtotals: dict[int, int]
     charge_totals: dict[int, int]
+    charge_allocations: list[dict[int, int]]
 
 
 @dataclass(frozen=True)
@@ -92,11 +93,13 @@ def compute_shares(
             item_subtotals[pid] += share
 
     charge_totals: dict[int, int] = {pid: 0 for pid in all_pids}
+    charge_allocations: list[dict[int, int]] = []
     for ch in charges:
         subtotal_abs = {pid: abs(st) for pid, st in item_subtotals.items()}
         total_abs = sum(subtotal_abs.values())
         if total_abs == 0:
             if not all_pids:
+                charge_allocations.append({})
                 continue
             charge_weights = [(pid, 1) for pid in sorted(all_pids)]
         else:
@@ -104,10 +107,14 @@ def compute_shares(
                 (pid, subtotal_abs[pid]) for pid in sorted(all_pids) if subtotal_abs[pid] > 0
             ]
         if not charge_weights:
+            charge_allocations.append({})
             continue
         shares = allocate(ch.amount_minor, charge_weights)
+        alloc: dict[int, int] = {}
         for pid, share in shares:
             charge_totals[pid] += share
+            alloc[pid] = share
+        charge_allocations.append(alloc)
 
     owed: dict[int, int] = {}
     paid: dict[int, int] = {pid: 0 for pid in all_pids}
@@ -119,5 +126,9 @@ def compute_shares(
 
     net = {pid: paid[pid] - owed[pid] for pid in all_pids}
     return ShareResult(
-        owed=owed, net=net, item_subtotals=item_subtotals, charge_totals=charge_totals
+        owed=owed,
+        net=net,
+        item_subtotals=item_subtotals,
+        charge_totals=charge_totals,
+        charge_allocations=charge_allocations,
     )

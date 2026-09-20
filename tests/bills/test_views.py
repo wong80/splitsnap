@@ -1,4 +1,5 @@
 import pytest
+from django.core.signing import get_cookie_signer
 from django.test import Client
 
 from bills.models import (
@@ -25,6 +26,11 @@ def bill(db):
 @pytest.fixture
 def review_bill(db):
     return Bill.objects.create(title="Review", status=BillStatus.REVIEW, currency="MYR")
+
+
+def _set_participant_cookie(client, bill, participant):
+    key = f"participant_{bill.id}"
+    client.cookies[key] = get_cookie_signer(salt=key).sign(str(participant.id))
 
 
 def _setup_lockable_bill(db):
@@ -222,7 +228,7 @@ class TestClaims:
     def test_toggle_claim_on(self, client, bill):
         item = LineItem.objects.create(bill=bill, position=1, description="X", amount_minor=100)
         p = Participant.objects.create(bill=bill, name="Alice")
-        client.cookies[f"participant_{bill.id}"] = str(p.id)
+        _set_participant_cookie(client, bill, p)
         client.post(
             f"/s/{bill.share_token}/",
             {"action": "toggle_claim", "item_id": str(item.id)},
@@ -233,7 +239,7 @@ class TestClaims:
         item = LineItem.objects.create(bill=bill, position=1, description="X", amount_minor=100)
         p = Participant.objects.create(bill=bill, name="Alice")
         ItemClaim.objects.create(line_item=item, participant=p, weight=1)
-        client.cookies[f"participant_{bill.id}"] = str(p.id)
+        _set_participant_cookie(client, bill, p)
         client.post(
             f"/s/{bill.share_token}/",
             {"action": "toggle_claim", "item_id": str(item.id)},
@@ -243,7 +249,7 @@ class TestClaims:
     def test_claim_idempotent(self, client, bill):
         item = LineItem.objects.create(bill=bill, position=1, description="X", amount_minor=100)
         p = Participant.objects.create(bill=bill, name="Alice")
-        client.cookies[f"participant_{bill.id}"] = str(p.id)
+        _set_participant_cookie(client, bill, p)
         client.post(
             f"/s/{bill.share_token}/",
             {"action": "toggle_claim", "item_id": str(item.id)},
@@ -257,7 +263,7 @@ class TestClaims:
         assert bill.status == BillStatus.LOCKED
 
         item = bill.line_items.first()
-        client.cookies[f"participant_{bill.id}"] = str(a.id)
+        _set_participant_cookie(client, bill, a)
         client.post(
             f"/s/{bill.share_token}/",
             {"action": "toggle_claim", "item_id": str(item.id)},
@@ -269,7 +275,7 @@ class TestClaims:
         )
         p = Participant.objects.create(bill=bill, name="Alice")
         ItemClaim.objects.create(line_item=item, participant=p, weight=1)
-        client.cookies[f"participant_{bill.id}"] = str(p.id)
+        _set_participant_cookie(client, bill, p)
         client.post(
             f"/s/{bill.share_token}/",
             {"action": "set_weight", "item_id": str(item.id), "weight": "2"},
@@ -282,7 +288,7 @@ class TestClaims:
             bill=bill, position=1, description="X", amount_minor=100, quantity=2
         )
         p = Participant.objects.create(bill=bill, name="Alice")
-        client.cookies[f"participant_{bill.id}"] = str(p.id)
+        _set_participant_cookie(client, bill, p)
         client.post(
             f"/s/{bill.share_token}/",
             {"action": "set_weight", "item_id": str(item.id), "weight": "10"},

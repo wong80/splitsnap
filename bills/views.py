@@ -4,14 +4,18 @@ import contextlib
 import datetime
 import logging
 
+from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 from django_ratelimit.decorators import ratelimit
 
+from receipts.extraction import get_extractor
+from receipts.images import prepare_image
+from receipts.validation import run_extraction
 from splitting.engine import Charge, Item, PaymentEntry, compute_shares
-from splitting.money import to_display, to_minor
+from splitting.money import CURRENCIES, to_display, to_minor
 from splitting.settle import settle
 
 from .models import (
@@ -110,7 +114,7 @@ def _person_totals(bill: Bill, shares) -> list[dict]:
     return totals
 
 
-# --- Upload flow (Step 5) ---
+# --- Upload ---
 
 
 @ratelimit(key="ip", rate="10/h", method="POST", block=True)
@@ -126,9 +130,6 @@ def upload(request: HttpRequest) -> HttpResponse:
     if file.size > 10 * 1024 * 1024:
         return render(request, "bills/upload.html", {"error": "File too large (max 10 MB)."})
 
-    from receipts.images import prepare_image
-    from receipts.validation import run_extraction
-
     try:
         image_data = prepare_image(file.read())
     except ValueError:
@@ -137,8 +138,6 @@ def upload(request: HttpRequest) -> HttpResponse:
             "bills/upload.html",
             {"error": "Invalid image. Please upload JPEG, PNG, WEBP, or HEIC."},
         )
-
-    from receipts.extraction import get_extractor
 
     extractor = get_extractor()
     result = run_extraction(image_data, extractor)
@@ -152,6 +151,7 @@ def upload(request: HttpRequest) -> HttpResponse:
         prompt_version="extract_v1",
         expires_at=now + datetime.timedelta(days=7),
     )
+    bill.receipt_image.save("receipt.jpg", ContentFile(image_data), save=True)
 
     if result.receipt.printed_total:
         try:
@@ -187,7 +187,7 @@ def upload(request: HttpRequest) -> HttpResponse:
     return redirect("admin-bill-detail", admin_token=bill.admin_token)
 
 
-# --- Admin detail / review (Steps 5 & 6) ---
+# --- Admin detail ---
 
 
 @require_http_methods(["GET", "POST"])
@@ -232,7 +232,7 @@ def admin_bill_detail(request: HttpRequest, admin_token: str) -> HttpResponse:
     return render(request, "bills/admin_detail.html", ctx)
 
 
-# --- Share detail (Step 6) ---
+# --- Share detail ---
 
 
 @require_http_methods(["GET", "POST"])
@@ -245,7 +245,10 @@ def share_bill_detail(request: HttpRequest, share_token: str) -> HttpResponse:
     if bill.status in (BillStatus.EXTRACTING, BillStatus.REVIEW):
         return render(request, "bills/share_waiting.html", {"bill": bill})
 
-    participant_id = request.COOKIES.get(f"participant_{bill.id}")
+    try:
+        participant_id = request.get_signed_cookie(f"participant_{bill.id}")
+    except Exception:
+        participant_id = None
     participant = None
     if participant_id:
         with contextlib.suppress(Participant.DoesNotExist):
@@ -264,6 +267,14 @@ def share_bill_detail(request: HttpRequest, share_token: str) -> HttpResponse:
     ctx["person_totals"] = _person_totals(bill, ctx["shares"])
     ctx["participant"] = participant
     ctx["is_admin"] = False
+    if participant:
+        ctx["claimed_ids"] = set(
+            ItemClaim.objects.filter(participant=participant).values_list(
+                "line_item_id", flat=True
+            )
+        )
+    else:
+        ctx["claimed_ids"] = set()
     response = render(request, "bills/share_detail.html", ctx)
     return response
 
@@ -285,10 +296,11 @@ def _handle_update_bill(request: HttpRequest, bill: Bill) -> HttpResponse:
     printed_total = request.POST.get("printed_total", "")
 
     bill.title = title
-    bill.currency = currency
+    if currency in CURRENCIES:
+        bill.currency = currency
     if printed_total:
         with contextlib.suppress(ValueError):
-            bill.printed_total_minor = to_minor(printed_total, currency)
+            bill.printed_total_minor = to_minor(printed_total, bill.currency)
     bill.save()
     return redirect("admin-bill-detail", admin_token=bill.admin_token)
 
@@ -296,7 +308,10 @@ def _handle_update_bill(request: HttpRequest, bill: Bill) -> HttpResponse:
 def _handle_add_item(request: HttpRequest, bill: Bill) -> HttpResponse:
     desc = request.POST.get("description", "New item")
     amount = request.POST.get("amount", "0")
-    quantity = int(request.POST.get("quantity", "1") or "1")
+    try:
+        quantity = int(request.POST.get("quantity", "1") or "1")
+    except ValueError:
+        quantity = 1
     discount = request.POST.get("discount", "0")
 
     last_pos = (
@@ -328,6 +343,8 @@ def _handle_delete_item(request: HttpRequest, bill: Bill) -> HttpResponse:
 
 def _handle_add_charge(request: HttpRequest, bill: Bill) -> HttpResponse:
     kind = request.POST.get("kind", "other")
+    if kind not in dict(ChargeKind.choices):
+        kind = "other"
     label = request.POST.get("label", "")
     amount = request.POST.get("amount", "0")
     try:
@@ -367,6 +384,8 @@ def _handle_add_payment(request: HttpRequest, bill: Bill) -> HttpResponse:
     except ValueError:
         return redirect("admin-bill-detail", admin_token=bill.admin_token)
     if amount_minor > 0 and pid:
+        if not bill.participants.filter(id=pid).exists():
+            return redirect("admin-bill-detail", admin_token=bill.admin_token)
         Payment.objects.update_or_create(
             bill=bill,
             participant_id=pid,
@@ -397,15 +416,25 @@ def _handle_lock(request: HttpRequest, bill: Bill) -> HttpResponse:
         return redirect("admin-bill-detail", admin_token=bill.admin_token)
 
     shares = ctx["shares"]
+    charges_list = list(bill.charges.all())
     now = timezone.now()
 
     for pid in shares.owed:
         participant = Participant.objects.get(id=pid)
+        per_charge = []
+        for i, ch in enumerate(charges_list):
+            amount = shares.charge_allocations[i].get(pid, 0)
+            if amount != 0:
+                per_charge.append({
+                    "kind": ch.kind,
+                    "label": ch.label or ch.get_kind_display(),
+                    "amount": amount,
+                })
         SplitSnapshot.objects.create(
             bill=bill,
             participant=participant,
             items_minor=shares.item_subtotals.get(pid, 0),
-            charges_minor=shares.charge_totals.get(pid, 0),
+            charges_minor=per_charge,
             owed_minor=shares.owed[pid],
             paid_minor=shares.net[pid] + shares.owed[pid],
         )
@@ -445,6 +474,9 @@ def _handle_unlock(request: HttpRequest, bill: Bill) -> HttpResponse:
 
 
 def _handle_identify(request: HttpRequest, bill: Bill) -> HttpResponse:
+    if bill.status != BillStatus.OPEN:
+        return redirect("share-bill-detail", share_token=bill.share_token)
+
     name = request.POST.get("name", "").strip()
     pid = request.POST.get("participant_id")
 
@@ -459,7 +491,7 @@ def _handle_identify(request: HttpRequest, bill: Bill) -> HttpResponse:
 
     if participant:
         response = redirect("share-bill-detail", share_token=bill.share_token)
-        response.set_cookie(
+        response.set_signed_cookie(
             f"participant_{bill.id}",
             str(participant.id),
             max_age=30 * 24 * 3600,
@@ -496,7 +528,10 @@ def _handle_set_weight(request: HttpRequest, bill: Bill, participant: Participan
         return redirect("share-bill-detail", share_token=bill.share_token)
 
     item_id = request.POST.get("item_id")
-    weight = int(request.POST.get("weight", "1") or "1")
+    try:
+        weight = int(request.POST.get("weight", "1") or "1")
+    except ValueError:
+        weight = 1
 
     try:
         item = bill.line_items.get(id=item_id)

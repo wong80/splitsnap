@@ -45,8 +45,10 @@ class AnthropicExtractor:
             timeout=45.0,
         )
 
-        text = response.content[0].text
-        text = text.strip()
+        if not response.content or not hasattr(response.content[0], "text"):
+            raise ValueError("Unexpected API response: no text content")
+
+        text = response.content[0].text.strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1]
             text = text.rsplit("```", 1)[0]

@@ -27,8 +27,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 RECEIPT_EXTRACTOR = os.environ.get("RECEIPT_EXTRACTOR", "anthropic")
 
-# --- Sentry ---
-_TOKEN_RE = re.compile(r"/[bs]/([0-9a-f]{16,64})/")
+_TOKEN_RE = re.compile(r"/[bs]/([A-Za-z0-9_-]{16,86})/")
 
 
 def _scrub_tokens(event, hint):
@@ -49,7 +48,6 @@ if _dsn := os.environ.get("SENTRY_DSN"):
         before_send=_scrub_tokens,
     )
 
-# --- Logging ---
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -80,7 +78,6 @@ LOGGING = {
     },
 }
 
-# --- Cloudflare R2 storage ---
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",

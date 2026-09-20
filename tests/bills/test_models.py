@@ -35,13 +35,14 @@ def participant_b(bill):
 
 class TestBill:
     def test_token_generation(self, bill):
-        assert len(bill.admin_token) == 64
-        assert len(bill.share_token) == 64
+        assert len(bill.admin_token) == 43
+        assert len(bill.share_token) == 43
         assert bill.admin_token != bill.share_token
 
     def test_tokens_are_256_bit(self, bill):
-        assert len(bytes.fromhex(bill.admin_token)) == 32
-        assert len(bytes.fromhex(bill.share_token)) == 32
+        import base64
+        assert len(base64.urlsafe_b64decode(bill.admin_token + "=")) == 32
+        assert len(base64.urlsafe_b64decode(bill.share_token + "=")) == 32
 
     def test_unique_tokens(self, db):
         bills = [Bill.objects.create(title=f"Bill {i}") for i in range(5)]

@@ -26,6 +26,7 @@
 </p>
 {% endif %}
 
+<div id="live-region" hx-get="" hx-trigger="every 5s [!document.activeElement || document.activeElement.tagName === 'BODY']" hx-select="#live-region" hx-swap="outerHTML">
 <div class="section">
     <h2>Items</h2>
     <table>
@@ -62,5 +63,6 @@
         {% endfor %}
         </tbody>
     </table>
+</div>
 </div>
 {% endblock %}
