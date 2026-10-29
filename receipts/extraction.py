@@ -74,8 +74,26 @@ class FakeExtractor:
         )
 
 
+class DemoExtractor:
+    """Returns a realistic, reconciled receipt without calling an API.
+
+    Used by local compose and the dev environment so the full journey works with no keys.
+    ``DEMO_RECEIPT`` picks a fixture from ``receipts/fixtures/`` (default ``demo_receipt``).
+    """
+
+    def __init__(self, name: str | None = None) -> None:
+        self.name = name or os.environ.get("DEMO_RECEIPT", "demo_receipt")
+
+    def extract(self, image: bytes, feedback: str | None = None) -> ExtractedReceipt:
+        path = os.path.join(os.path.dirname(__file__), "fixtures", f"{self.name}.json")
+        with open(path, encoding="utf-8") as f:
+            return ExtractedReceipt.model_validate(json.load(f))
+
+
 def get_extractor() -> ReceiptExtractor:
     backend = os.environ.get("RECEIPT_EXTRACTOR", "fake")
     if backend == "anthropic":
         return AnthropicExtractor()
+    if backend == "demo":
+        return DemoExtractor()
     return FakeExtractor()

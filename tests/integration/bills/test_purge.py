@@ -14,7 +14,7 @@ def _now():
 
 
 def _setup_lockable_bill(db):
-    from tests.bills.test_views import _setup_lockable_bill
+    from tests.integration.bills.test_views import _setup_lockable_bill
 
     return _setup_lockable_bill(db)
 
