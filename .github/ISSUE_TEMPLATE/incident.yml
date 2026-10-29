@@ -1,0 +1,25 @@
+name: Incident
+description: Opened by the alert relay or a human when users are impacted
+labels: ["type:incident", "agent:oncall"]
+body:
+  - type: input
+    id: alert
+    attributes:
+      label: Alert
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] Root cause identified with trace/log evidence
+        - [ ] Regression test added
+        - [ ] Fix merged and deployed to dev; alert resolved
+        - [ ] Postmortem written in docs/incidents/
+    validations:
+      required: true

@@ -1,4 +1,9 @@
-# Backlog
+# Backlog (archived)
+
+> **This checklist is archived.** Open work now lives in the public tracker:
+> **https://github.com/wong80/splitsnap/issues**, where each issue has acceptance criteria and labels for its type, owning agent and phase.
+> The remaining unchecked items below were migrated to issues #19–#24 on 2026-10-29. See `docs/process.md`.
+
 
 Derived from `plan.md` and `grilling-amendments.md`. Tasks are grouped by implementation step. Within each step, tasks are ordered by dependency. Parallel-safe tasks within a step are marked `[parallel]`.
 
