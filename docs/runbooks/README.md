@@ -25,6 +25,12 @@ Start the relay once on the runner machine:
 python ops/alert_relay.py --mode local          # reads ~/.splitsnap/relay.token
 ```
 
+Wake the agent for an incident that is already open, for example one opened in `--mode issue-only`:
+
+```bash
+python ops/alert_relay.py --wake-issue <n> --alert HighServerErrorRate --env dev
+```
+
 ## Investigation toolkit (read-only)
 
 `G` is `http://localhost:3030` for dev and prod, or `http://localhost:3000` for local compose.

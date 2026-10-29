@@ -134,3 +134,18 @@ def test_http_endpoint_requires_bearer_token(relay_factory):
             assert json.load(resp)["actions"][0].startswith("opened #42")
     finally:
         server.shutdown()
+
+
+def test_wake_issue_starts_agent_for_existing_incident(monkeypatch, tmp_path):
+    monkeypatch.setattr(alert_relay, "STATE_HOME", tmp_path)
+    runner = FakeRunner()
+    real_relay = Relay
+
+    def fake_relay(**kwargs):
+        return real_relay(**kwargs, run=runner.run, spawn=runner.spawn)
+
+    monkeypatch.setattr(alert_relay, "Relay", fake_relay)
+    alert_relay.main(["--wake-issue", "31", "--alert", "HighServerErrorRate", "--env", "local"])
+    cmd, cwd = runner.spawned[0]
+    assert "Incident issue: #31" in cmd[2]
+    assert cwd.name == "incident-31"

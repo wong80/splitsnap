@@ -364,13 +364,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--base-branch", default="main")
     parser.add_argument("--budget-usd", type=float, default=5.0)
     parser.add_argument("--token", default=os.environ.get("ALERT_RELAY_TOKEN"))
+    wake = parser.add_argument_group("wake the agent for an existing incident, then exit")
+    wake.add_argument("--wake-issue", type=int, help="incident issue number")
+    wake.add_argument("--alert", help="alert name, e.g. HighServerErrorRate")
+    wake.add_argument("--env", default="dev", help="deployment environment label")
     args = parser.parse_args(argv)
-
-    token = args.token
-    if token is None and (STATE_HOME / "relay.token").exists():
-        token = (STATE_HOME / "relay.token").read_text(encoding="utf-8").strip()
-    if not token:
-        sys.exit("No relay token: use --token, ALERT_RELAY_TOKEN or ~/.splitsnap/relay.token")
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s alert_relay %(message)s")
     relay = Relay(
@@ -381,6 +379,22 @@ def main(argv: list[str] | None = None) -> None:
         base_branch=args.base_branch,
         budget_usd=args.budget_usd,
     )
+
+    if args.wake_issue:
+        if not args.alert:
+            parser.error("--wake-issue requires --alert")
+        alert = Alert.from_grafana(
+            {"labels": {"alertname": args.alert, "deployment_environment_name": args.env}}
+        )
+        log.info(relay._wake_agent(alert, args.wake_issue))
+        return
+
+    token = args.token
+    if token is None and (STATE_HOME / "relay.token").exists():
+        token = (STATE_HOME / "relay.token").read_text(encoding="utf-8").strip()
+    if not token:
+        sys.exit("No relay token: use --token, ALERT_RELAY_TOKEN or ~/.splitsnap/relay.token")
+
     server = ThreadingHTTPServer((args.host, args.port), make_handler(relay, token))
     log.info("listening on %s:%s (mode=%s, repo=%s)", args.host, args.port, args.mode, args.repo)
     server.serve_forever()
