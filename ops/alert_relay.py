@@ -354,7 +354,8 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--mode", choices=["local", "github", "issue-only"], default="local")
     parser.add_argument("--port", type=int, default=9095)
-    parser.add_argument("--host", default="0.0.0.0")
+    # Loopback only: Docker Desktop forwards host.docker.internal to the host loopback.
+    parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--repo", default="wong80/splitsnap")
     parser.add_argument("--repo-dir", type=Path, default=Path(__file__).resolve().parent.parent)
     parser.add_argument(
