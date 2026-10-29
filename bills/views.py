@@ -14,6 +14,7 @@ from django_ratelimit.decorators import ratelimit
 from core.telemetry import bills_locked_counter, tracer
 from receipts.extraction import get_extractor
 from receipts.images import prepare_image
+from receipts.schema import is_supported_currency
 from receipts.validation import run_extraction
 from splitting.engine import Charge, Item, PaymentEntry, compute_shares
 from splitting.money import CURRENCIES, to_display, to_minor
@@ -154,9 +155,11 @@ def upload(request: HttpRequest) -> HttpResponse:
 
 def _create_bill_from_extraction(result, image_data: bytes) -> Bill:
     now = timezone.now()
+    raw_currency = result.receipt.currency.upper()
+    currency = raw_currency if is_supported_currency(raw_currency) else "MYR"
     bill = Bill.objects.create(
         title=result.receipt.title,
-        currency=result.receipt.currency.upper(),
+        currency=currency,
         status=BillStatus.REVIEW,
         extraction_attempts=result.attempts,
         prompt_version="extract_v1",
