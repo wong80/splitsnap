@@ -63,28 +63,37 @@ LOGGING = {
     "disable_existing_loggers": False,
     "filters": {
         "token_redaction": {"()": "core.logging.TokenRedactionFilter"},
+        "trace_context": {"()": "core.logging.TraceContextFilter"},
     },
     "formatters": {
         "json": {
             "()": "pythonjsonlogger.json.JsonFormatter",
-            "fmt": "%(asctime)s %(name)s %(levelname)s %(message)s",
+            "fmt": "%(asctime)s %(name)s %(levelname)s %(message)s %(trace_id)s %(span_id)s",
         },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "json",
+            "filters": ["token_redaction", "trace_context"],
+        },
+        # Exports log records over OTLP with the active trace/span IDs (no-op when telemetry
+        # is not configured). Configured after core.telemetry.setup() runs in wsgi.py.
+        "otlp": {
+            "class": "opentelemetry.sdk._logs.LoggingHandler",
+            "level": "INFO",
             "filters": ["token_redaction"],
         },
     },
     "root": {
-        "handlers": ["console"],
+        "handlers": ["console", "otlp"],
         "level": "INFO",
     },
     "loggers": {
-        "django": {"handlers": ["console"], "level": "WARNING", "propagate": False},
-        "bills": {"handlers": ["console"], "level": "INFO", "propagate": False},
-        "receipts": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django": {"handlers": ["console", "otlp"], "level": "WARNING", "propagate": False},
+        "bills": {"handlers": ["console", "otlp"], "level": "INFO", "propagate": False},
+        "receipts": {"handlers": ["console", "otlp"], "level": "INFO", "propagate": False},
+        "core": {"handlers": ["console", "otlp"], "level": "INFO", "propagate": False},
     },
 }
 

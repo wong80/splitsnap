@@ -5,6 +5,9 @@ import logging
 import time
 from dataclasses import dataclass
 
+from opentelemetry.trace import Status, StatusCode
+
+from core.telemetry import extraction_counter, extraction_duration, tracer
 from splitting.money import to_minor
 
 from .extraction import ReceiptExtractor
@@ -32,10 +35,18 @@ def compute_gap(receipt: ExtractedReceipt, currency: str) -> int:
     return item_total + charge_total - printed
 
 
-def _log_extraction(result: ExtractionResult, latency_ms: int) -> None:
-    outcome = "match" if result.gap == 0 else "mismatch"
+def _outcome(result: ExtractionResult, failed: bool) -> str:
+    if failed:
+        return "error"
     if not result.currency_supported:
-        outcome = "unsupported_currency"
+        return "unsupported_currency"
+    return "match" if result.gap == 0 else "mismatch"
+
+
+def _log_extraction(result: ExtractionResult, latency_ms: int, failed: bool = False) -> None:
+    outcome = _outcome(result, failed)
+    extraction_counter.add(1, {"outcome": outcome})
+    extraction_duration.record(latency_ms / 1000, {"outcome": outcome})
     logger.info(
         "receipt.extraction.completed",
         extra={
@@ -48,6 +59,18 @@ def _log_extraction(result: ExtractionResult, latency_ms: int) -> None:
 
 
 def run_extraction(
+    image: bytes,
+    extractor: ReceiptExtractor,
+) -> ExtractionResult:
+    with tracer.start_as_current_span("receipt.extract") as span:
+        result = _run_extraction(image, extractor)
+        span.set_attribute("splitsnap.extraction.attempts", result.attempts)
+        span.set_attribute("splitsnap.extraction.gap_minor", result.gap)
+        span.set_attribute("splitsnap.extraction.currency_supported", result.currency_supported)
+        return result
+
+
+def _run_extraction(
     image: bytes,
     extractor: ReceiptExtractor,
 ) -> ExtractionResult:
@@ -66,11 +89,20 @@ def run_extraction(
                 f"The gap is {gap} minor units. Please re-extract carefully."
             )
 
-        try:
-            receipt = extractor.extract(image, feedback=feedback)
-        except Exception:
-            receipt = None
-            continue
+        with tracer.start_as_current_span("receipt.extract.attempt") as attempt_span:
+            attempt_span.set_attribute("splitsnap.extraction.attempt", attempts)
+            attempt_span.set_attribute("splitsnap.extraction.with_feedback", feedback is not None)
+            try:
+                receipt = extractor.extract(image, feedback=feedback)
+            except Exception as exc:
+                attempt_span.record_exception(exc)
+                attempt_span.set_status(Status(StatusCode.ERROR, type(exc).__name__))
+                logger.warning(
+                    "receipt.extraction.attempt_failed",
+                    extra={"attempt": attempts, "error_type": type(exc).__name__},
+                )
+                receipt = None
+                continue
 
         currency = receipt.currency.upper()
         currency_supported = is_supported_currency(currency)
@@ -107,6 +139,7 @@ def run_extraction(
             _log_extraction(result, int((time.monotonic() - t0) * 1000))
             return result
 
+    failed = receipt is None
     if receipt is None:
         receipt = ExtractedReceipt(title=f"Receipt {datetime.date.today().isoformat()}")
 
@@ -122,5 +155,5 @@ def run_extraction(
         status="review",
         currency_supported=currency_supported,
     )
-    _log_extraction(result, int((time.monotonic() - t0) * 1000))
+    _log_extraction(result, int((time.monotonic() - t0) * 1000), failed=failed)
     return result
