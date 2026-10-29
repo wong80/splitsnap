@@ -33,6 +33,7 @@ services:
       HTTPS_ONLY: "false"
       DEPLOY_ENV: local
       RECEIPT_EXTRACTOR: ${RECEIPT_EXTRACTOR:-demo}
+      DEMO_RECEIPT: ${DEMO_RECEIPT:-demo_receipt}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4318
       OTEL_SERVICE_NAME: splitsnap
@@ -41,16 +42,37 @@ services:
     volumes:
       - media:/data/media
 
+  # Synthetic journey every 30 s:  docker compose --profile probe up
+  probe:
+    image: splitsnap:local
+    profiles: ["probe"]
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      RUN_MIGRATIONS: "0"
+      DJANGO_SECRET_KEY: probe-does-not-serve-requests
+      DATABASE_URL: sqlite:////tmp/unused.sqlite3
+    command: ["python", "manage.py", "probe_journey", "--base-url", "http://web:8000", "--interval", "30"]
+    healthcheck:
+      disable: true
+
   # Grafana + OpenTelemetry Collector + Tempo (traces) + Loki (logs) + Prometheus (metrics)
   lgtm:
     image: grafana/otel-lgtm:0.20.0
     ports:
       - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    environment:
+      # Alerts are delivered to ops/alert_relay.py running on the host (optional locally).
+      ALERT_RELAY_URL: ${ALERT_RELAY_URL:-http://host.docker.internal:9095/alert}
+      ALERT_RELAY_TOKEN: ${ALERT_RELAY_TOKEN:-local-dev-relay-token}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - lgtm:/data
       - ./observability/grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/splitsnap.yaml:ro
       - ./observability/grafana/dashboards:/otel-lgtm/splitsnap-dashboards:ro
-      - ./observability/grafana/alerting:/otel-lgtm/grafana/conf/provisioning/alerting/splitsnap:ro
+      - ./observability/grafana/alerting/splitsnap-alerts.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/splitsnap-alerts.yaml:ro
 
 volumes:
   pgdata:
