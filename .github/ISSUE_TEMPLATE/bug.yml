@@ -1,0 +1,24 @@
+name: Bug
+description: Something is broken
+labels: ["type:bug", "agent:planner"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Steps to reproduce, expected vs actual. No tokens or receipt contents.
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] A regression test reproduces the bug
+        - [ ] 
+    validations:
+      required: true
+  - type: input
+    id: trace
+    attributes:
+      label: Trace ID (if known)
