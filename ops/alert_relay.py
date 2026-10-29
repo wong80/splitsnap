@@ -22,6 +22,7 @@ import hmac
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -282,10 +283,15 @@ class Relay:
             capture_output=True,
         )
         log_path = STATE_HOME / f"oncall-{issue}.log"
+        # The prompt goes in on stdin: on Windows `claude` is a .cmd shim, and batch files
+        # truncate multi-line arguments. shutil.which resolves the shim via PATHEXT.
+        prompt_path = STATE_HOME / f"oncall-{issue}.prompt.md"
+        prompt_path.write_text(
+            oncall_prompt(alert, issue, self.grafana_url, self.base_branch), encoding="utf-8"
+        )
         cmd = [
-            "claude",
+            shutil.which("claude") or "claude",
             "-p",
-            oncall_prompt(alert, issue, self.grafana_url, self.base_branch),
             "--agent",
             "oncall",
             "--permission-mode",
@@ -298,8 +304,9 @@ class Relay:
             "text",
         ]
         log_file = open(log_path, "w", encoding="utf-8")  # noqa: SIM115 - owned by the child
+        prompt_file = open(prompt_path, encoding="utf-8")  # noqa: SIM115 - owned by the child
         self._spawn(
-            cmd, cwd=worktree, stdout=log_file, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL
+            cmd, cwd=worktree, stdout=log_file, stderr=subprocess.STDOUT, stdin=prompt_file
         )
         self._gh(
             "issue",
