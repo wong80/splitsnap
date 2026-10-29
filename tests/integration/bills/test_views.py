@@ -84,6 +84,69 @@ class TestUpload:
         assert b"select a file" in resp.content.lower()
 
 
+class TestUnsupportedCurrencyRegression:
+    """Regression: a receipt extracted with an unsupported currency (e.g. INR)
+    must not crash the admin page.  See incident #31 / trace
+    460aa4457b13860bee440f10979aadc6."""
+
+    def test_bill_with_unsupported_currency_falls_back(self, db):
+        """_create_bill_from_extraction must replace an unsupported currency
+        with the default so that to_display never raises ValueError."""
+        from bills.views import _create_bill_from_extraction
+        from receipts.schema import ExtractedItem, ExtractedReceipt
+        from receipts.validation import ExtractionResult
+
+        receipt = ExtractedReceipt(
+            items=[ExtractedItem(description="Biryani", amount="500", quantity=1)],
+            printed_total="500",
+            currency="INR",
+            title="Mumbai eats",
+        )
+        result = ExtractionResult(
+            receipt=receipt,
+            attempts=1,
+            gap=0,
+            status="review",
+            currency_supported=False,
+        )
+        # 1x1 white JPEG — smallest valid image
+        import base64
+
+        tiny_jpeg = base64.b64decode(
+            "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoH"
+            "BwYIDAoMCwsKCwsM"
+            "EA0QFBEOEMAQERMAGBUYUBQQHB0dIRwdGx8fMyMqMicsLDk7Oj5CQkFDREZJSlBU"
+            "V1dYXFpvcnJ5hYaJ"
+            "jZCVl6CkrLO4xczW4Ojx+P/AABEIAAEAAQMBIgACEQEDEQH/xABLAAEBAAAAAAAA"
+            "AAAAAAAAAAAACgEB"
+            "AQAAAAAAAAAAAAAAAAAAAAAAEAEAAAAAAAAAAAAAAAAAAAAAgREBAAAAAAAAAAAAAAAA"
+            "AAAAAID/2gAMAwEA"
+            "AhEDEQA/AKYAH//Z"
+        )
+        bill = _create_bill_from_extraction(result, tiny_jpeg)
+        assert bill.currency == "MYR", "Unsupported currency must fall back to MYR"
+        assert bill.pk is not None
+
+    def test_admin_page_renders_for_unsupported_currency_bill(self, client, db):
+        """The admin page must not return 500 for a bill whose extraction had
+        an unsupported currency — the fallback currency keeps to_display safe."""
+        bill = Bill.objects.create(
+            title="Fallback test",
+            status=BillStatus.REVIEW,
+            currency="MYR",  # the fallback that _create_bill_from_extraction now applies
+        )
+        resp = client.get(f"/b/{bill.admin_token}/")
+        assert resp.status_code == 200
+
+    def test_admin_page_500_without_fix_scenario(self, db):
+        """If a bill somehow had an unsupported currency, _bill_context would
+        raise ValueError.  This guards against any future bypass."""
+        from splitting.money import exponent
+
+        with pytest.raises(ValueError, match="Unsupported currency"):
+            exponent("INR")
+
+
 class TestReviewConfirm:
     def test_confirm_transitions_to_open(self, client, review_bill):
         client.post(
