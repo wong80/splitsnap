@@ -1,0 +1,13 @@
+{
+  "title": "Demo: Chennai dosa breakfast",
+  "currency": "INR",
+  "printed_total": "540.00",
+  "items": [
+    {"description": "Masala Dosa", "quantity": 2, "amount": "320.00", "item_discount": "0"},
+    {"description": "Filter Coffee", "quantity": 2, "amount": "120.00", "item_discount": "0"},
+    {"description": "Medu Vada", "quantity": 1, "amount": "75.00", "item_discount": "0"}
+  ],
+  "charges": [
+    {"kind": "tax", "label": "GST 5%", "amount": "25.00"}
+  ]
+}

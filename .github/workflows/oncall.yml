@@ -1,0 +1,72 @@
+name: On-call agent
+
+# Woken by ops/alert_relay.py (--mode github) through repository_dispatch when a Grafana
+# alert fires. Runs on the self-hosted runner, which can reach the local Grafana stack and
+# has Claude Code installed and signed in (or ANTHROPIC_API_KEY set as a repo secret).
+on:
+  repository_dispatch:
+    types: [oncall-alert]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Incident issue number
+        required: true
+      alert:
+        description: Alert name (e.g. HighServerErrorRate)
+        required: true
+      environment:
+        description: Environment label (dev/prod)
+        default: dev
+
+concurrency:
+  group: oncall-${{ github.event.client_payload.issue || inputs.issue }}
+  cancel-in-progress: false
+
+jobs:
+  respond:
+    runs-on: [self-hosted, splitsnap]
+    timeout-minutes: 45
+    permissions:
+      contents: write        # push the incident-<n> branch
+      pull-requests: write   # open the fix PR
+      issues: write          # comment on the incident
+    env:
+      ISSUE: ${{ github.event.client_payload.issue || inputs.issue }}
+      ALERT: ${{ github.event.client_payload.alert || inputs.alert }}
+      ALERT_ENV: ${{ github.event.client_payload.environment || inputs.environment }}
+      SUMMARY: ${{ github.event.client_payload.summary }}
+      STARTS_AT: ${{ github.event.client_payload.starts_at }}
+      BASE_BRANCH: ${{ github.event.client_payload.base_branch || 'main' }}
+      GH_TOKEN: ${{ github.token }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+      - name: Create incident branch
+        shell: bash
+        run: |
+          git checkout -B "incident-${ISSUE}"
+          git config user.name "splitsnap-oncall[bot]"
+          git config user.email "oncall@users.noreply.github.com"
+      - name: Run the On-call agent
+        shell: bash
+        run: |
+          set -euo pipefail
+          prompt="You are the SplitSnap On-call agent. Follow .claude/agents/oncall.md exactly.
+          Incident issue: #${ISSUE}
+          Alert: ${ALERT} (${ALERT_ENV}), started ${STARTS_AT}
+          Summary: ${SUMMARY}
+          Runbook: docs/runbooks/${ALERT}.md
+          Grafana: http://localhost:3030
+          You are on branch incident-${ISSUE} created from ${BASE_BRANCH}.
+          Open the fix PR against ${BASE_BRANCH} with Closes #${ISSUE} in the body.
+          Do not merge, deploy or touch production."
+          claude -p "$prompt" --agent oncall --permission-mode acceptEdits \
+            --allowedTools Read Edit Write Grep Glob "Bash(git:*)" "Bash(gh:*)" "Bash(uv:*)" "Bash(curl:*)" "Bash(python:*)" \
+            --max-budget-usd 5 --output-format text | tee oncall.log
+      - name: Report failure on the incident
+        if: failure()
+        shell: bash
+        run: |
+          gh issue comment "$ISSUE" -b "On-call agent run failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. @wong80 please take over."
