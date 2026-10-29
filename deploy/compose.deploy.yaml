@@ -1,0 +1,82 @@
+# Self-hosted dev/prod stack. Used by deploy/deploy.sh, one compose project per environment:
+#   docker compose -p splitsnap-dev  --env-file deploy/env/dev.env  -f deploy/compose.deploy.yaml up -d
+#   docker compose -p splitsnap-prod --env-file deploy/env/prod.env -f deploy/compose.deploy.yaml up -d
+# IMAGE, DJANGO_SECRET_KEY and POSTGRES_PASSWORD are exported by deploy.sh.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: splitsnap
+      POSTGRES_USER: splitsnap
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set by deploy.sh}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U splitsnap -d splitsnap"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    image: ${IMAGE:?set by deploy.sh}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://splitsnap:${POSTGRES_PASSWORD}@db:5432/splitsnap
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set by deploy.sh}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+      HTTPS_ONLY: ${HTTPS_ONLY:-true}
+      DEPLOY_ENV: ${DEPLOY_ENV}
+      RECEIPT_EXTRACTOR: ${RECEIPT_EXTRACTOR:-demo}
+      DEMO_RECEIPT: ${DEMO_RECEIPT:-demo_receipt}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: splitsnap
+    ports:
+      - "127.0.0.1:${WEB_PORT}:8000"
+    volumes:
+      - media:/data/media
+    networks: [default, ops]
+
+  # Continuous synthetic traffic (dev only: COMPOSE_PROFILES=probe).
+  probe:
+    image: ${IMAGE}
+    profiles: ["probe"]
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      RUN_MIGRATIONS: "0"
+      DJANGO_SECRET_KEY: probe-does-not-serve-requests
+      DATABASE_URL: sqlite:////tmp/unused.sqlite3
+    command:
+      ["python", "manage.py", "probe_journey", "--base-url", "http://web:8000",
+       "--interval", "${PROBE_INTERVAL:-60}"]
+    healthcheck:
+      disable: true
+
+  # Public HTTPS URL without an account (prod only: COMPOSE_PROFILES=tunnel).
+  # The random *.trycloudflare.com URL is printed in this container's logs.
+  tunnel:
+    image: cloudflare/cloudflared:2026.10.0
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    command: ["tunnel", "--no-autoupdate", "--url", "http://web:8000"]
+
+volumes:
+  pgdata:
+  media:
+
+networks:
+  ops:
+    name: splitsnap-ops
+    external: true
