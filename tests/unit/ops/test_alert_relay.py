@@ -43,7 +43,7 @@ class FakeRunner:
         return SimpleNamespace(stdout=out, returncode=0)
 
     def spawn(self, cmd, **kwargs):
-        self.spawned.append((cmd, kwargs["cwd"]))
+        self.spawned.append((cmd, kwargs["cwd"], kwargs["stdin"].read()))
         return SimpleNamespace(pid=1)
 
 
@@ -77,9 +77,10 @@ def test_firing_alert_opens_one_incident_and_wakes_local_agent(relay_factory):
     assert "type:incident,agent:oncall" in create[0]
     assert "docs/runbooks/HighServerErrorRate.md" in create[1]
 
-    cmd, cwd = runner.spawned[0]
-    assert cmd[0] == "claude" and "--agent" in cmd and "oncall" in cmd
-    assert "Incident issue: #42" in cmd[2]
+    cmd, cwd, prompt = runner.spawned[0]
+    assert cmd[0].lower().replace(".cmd", "").endswith("claude")
+    assert "--agent" in cmd and "oncall" in cmd
+    assert "Incident issue: #42" in prompt  # prompt is sent on stdin
     assert cwd.name == "incident-42"
     assert any(c[0][:2] == ["git", "-C"] and "worktree" in c[0] for c in runner.calls)
 
@@ -146,6 +147,6 @@ def test_wake_issue_starts_agent_for_existing_incident(monkeypatch, tmp_path):
 
     monkeypatch.setattr(alert_relay, "Relay", fake_relay)
     alert_relay.main(["--wake-issue", "31", "--alert", "HighServerErrorRate", "--env", "local"])
-    cmd, cwd = runner.spawned[0]
-    assert "Incident issue: #31" in cmd[2]
+    cmd, cwd, prompt = runner.spawned[0]
+    assert "Incident issue: #31" in prompt
     assert cwd.name == "incident-31"
