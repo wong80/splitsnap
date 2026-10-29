@@ -1,4 +1,6 @@
 # One command for the whole system:  docker compose up --build
+#   app      http://localhost:8000   (WEB_PORT)
+#   Grafana  http://localhost:3000   (GRAFANA_PORT) — dashboards, traces, logs, alerts
 name: splitsnap
 
 services:
@@ -22,6 +24,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      lgtm:
+        condition: service_started
     environment:
       DATABASE_URL: postgres://splitsnap:splitsnap@db:5432/splitsnap
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-compose-insecure-key}
@@ -30,11 +34,25 @@ services:
       DEPLOY_ENV: local
       RECEIPT_EXTRACTOR: ${RECEIPT_EXTRACTOR:-demo}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4318
+      OTEL_SERVICE_NAME: splitsnap
     ports:
       - "${WEB_PORT:-8000}:8000"
     volumes:
       - media:/data/media
 
+  # Grafana + OpenTelemetry Collector + Tempo (traces) + Loki (logs) + Prometheus (metrics)
+  lgtm:
+    image: grafana/otel-lgtm:0.20.0
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - lgtm:/data
+      - ./observability/grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/splitsnap.yaml:ro
+      - ./observability/grafana/dashboards:/otel-lgtm/splitsnap-dashboards:ro
+      - ./observability/grafana/alerting:/otel-lgtm/grafana/conf/provisioning/alerting/splitsnap:ro
+
 volumes:
   pgdata:
   media:
+  lgtm:
