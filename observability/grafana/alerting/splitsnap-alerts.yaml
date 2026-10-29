@@ -1,0 +1,101 @@
+# Grafana-managed alert rules on *user impact*, provisioned at startup.
+# Every rule fires per environment (deployment_environment_name) and routes to the
+# alert relay (ops/alert_relay.py), which opens an incident issue and wakes the on-call agent.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: splitsnap-user-impact
+    folder: SplitSnap
+    interval: 30s
+    rules:
+      - uid: splitsnap-extraction-failing
+        title: ReceiptExtractionFailing
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                sum by (deployment_environment_name) (rate(splitsnap_extraction_total{outcome=~"error|unsupported_currency"}[5m]))
+                / sum by (deployment_environment_name) (rate(splitsnap_extraction_total[5m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: {type: gt, params: [0.2]}
+        labels:
+          severity: page
+          service: splitsnap
+        annotations:
+          summary: "Receipt extraction is failing for more than 20% of uploads in {{ $labels.deployment_environment_name }}"
+          description: >-
+            More than 20% of receipt uploads in {{ $labels.deployment_environment_name }} ended in
+            error or unsupported_currency over the last 5 minutes. Users cannot create bills.
+          runbook_url: https://github.com/wong80/splitsnap/blob/main/docs/runbooks/ReceiptExtractionFailing.md
+          dashboard: "/d/splitsnap"
+
+      - uid: splitsnap-http-5xx
+        title: HighServerErrorRate
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                sum by (deployment_environment_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+                / sum by (deployment_environment_name) (rate(http_server_request_duration_seconds_count[5m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: {type: gt, params: [0.05]}
+        labels:
+          severity: page
+          service: splitsnap
+        annotations:
+          summary: "More than 5% of requests fail with 5xx in {{ $labels.deployment_environment_name }}"
+          description: >-
+            Users are seeing server errors on SplitSnap pages in
+            {{ $labels.deployment_environment_name }} (5xx ratio over 5 minutes above 5%).
+          runbook_url: https://github.com/wong80/splitsnap/blob/main/docs/runbooks/HighServerErrorRate.md
+          dashboard: "/d/splitsnap"
+
+contactPoints:
+  - orgId: 1
+    name: oncall-relay
+    receivers:
+      - uid: splitsnap-oncall-relay
+        type: webhook
+        settings:
+          url: "$ALERT_RELAY_URL"
+          httpMethod: POST
+          authorization_scheme: Bearer
+          authorization_credentials: "$ALERT_RELAY_TOKEN"
+        disableResolveMessage: false
+
+policies:
+  - orgId: 1
+    receiver: oncall-relay
+    group_by: [alertname, deployment_environment_name]
+    group_wait: 10s
+    group_interval: 1m
+    repeat_interval: 4h
