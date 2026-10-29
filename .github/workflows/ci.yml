@@ -52,5 +52,22 @@ jobs:
           ALLOWED_HOSTS: localhost
           DATABASE_URL: postgres://splitsnap:test@localhost:5432/splitsnap_test
         run: uv run python manage.py check --deploy
-      - run: uv run coverage run -m pytest
+      - name: Unit tests
+        run: uv run coverage run -m pytest -m unit
+      - name: Integration tests (Postgres)
+        run: uv run coverage run -a -m pytest -m integration
       - run: uv run coverage report
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start the full stack
+        run: docker compose up -d --build --wait --wait-timeout 180
+      - name: End-to-end journey probe against the container
+        run: docker compose exec -T web python manage.py probe_journey --base-url http://localhost:8000
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down -v
