@@ -1,0 +1,67 @@
+name: Promote to production
+
+# Manual production deploy. Promotes an image that is already running in dev,
+# after a required reviewer approves the `production` environment.
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit SHA to promote (must have been deployed to dev)
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      deployments: read
+    steps:
+      - name: Require a successful dev deployment of this SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="${{ inputs.sha }}"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Use the full 40-character SHA"; exit 1; }
+          ids=$(gh api "repos/${{ github.repository }}/deployments?environment=dev&sha=$sha" --jq '.[].id')
+          for id in $ids; do
+            state=$(gh api "repos/${{ github.repository }}/deployments/$id/statuses" --jq '.[0].state')
+            if [[ "$state" == "success" ]]; then echo "dev deployment $id succeeded"; exit 0; fi
+          done
+          echo "::error::$sha has no successful dev deployment; promote only what passed dev"
+          exit 1
+
+  promote:
+    needs: verify
+    runs-on: [self-hosted, splitsnap]
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.public_url }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Deploy the dev-tested image and smoke test
+        id: deploy
+        shell: bash
+        run: deploy/deploy.sh prod "${IMAGE}:${{ inputs.sha }}"
+      - name: Tag the image as prod
+        shell: bash
+        run: |
+          docker tag "${IMAGE}:${{ inputs.sha }}" "${IMAGE}:prod"
+          docker push -q "${IMAGE}:prod"
