@@ -19,6 +19,7 @@
         button { cursor: pointer; background: var(--accent); color: #fff; border: none; border-radius: 4px; padding: 0.5rem 1rem; }
         button.danger { background: var(--danger); }
         button.secondary { background: var(--muted); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         .gap-banner { padding: 0.5rem; border-radius: 4px; margin-bottom: 1rem; }
         .gap-banner.zero { background: #d1fae5; color: #065f46; }
         .gap-banner.nonzero { background: #fee2e2; color: #991b1b; }
@@ -30,6 +31,9 @@
     </style>
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    {% for message in messages %}
+    <div class="gap-banner {% if message.level_tag == 'error' %}nonzero{% else %}zero{% endif %}" role="alert">{{ message }}</div>
+    {% endfor %}
     {% block content %}{% endblock %}
 </body>
 </html>

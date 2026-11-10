@@ -4,7 +4,9 @@ import contextlib
 import datetime
 import logging
 
+from django.contrib import messages
 from django.core.files.base import ContentFile
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -17,7 +19,7 @@ from receipts.images import prepare_image
 from receipts.schema import is_supported_currency
 from receipts.validation import run_extraction
 from splitting.engine import Charge, Item, PaymentEntry, compute_shares
-from splitting.money import CURRENCIES, to_display, to_minor
+from splitting.money import CURRENCIES, rescale_minor, to_display, to_minor
 from splitting.settle import settle
 
 from .models import (
@@ -319,15 +321,55 @@ def _handle_update_bill(request: HttpRequest, bill: Bill) -> HttpResponse:
     printed_total = request.POST.get("printed_total", "")
 
     bill.title = title
-    if currency in CURRENCIES:
-        # Only an explicit, supported choice clears a pending currency choice.
-        bill.currency = currency
-        bill.extracted_currency = ""
+    # The form shows the printed total in the bill's current currency, so parse it with
+    # that currency before any currency change rescales it.
     if printed_total:
         with contextlib.suppress(ValueError):
             bill.printed_total_minor = to_minor(printed_total, bill.currency)
+
+    if currency in CURRENCIES:
+        if currency != bill.currency:
+            if bill.status != BillStatus.REVIEW:
+                messages.error(request, "The currency can only be changed while in review.")
+                bill.save()
+                return redirect("admin-bill-detail", admin_token=bill.admin_token)
+            try:
+                _change_currency(bill, currency)
+            except ValueError as exc:
+                messages.error(request, f"Currency not changed: {exc}. Adjust the amounts first.")
+                bill.save()
+                return redirect("admin-bill-detail", admin_token=bill.admin_token)
+        # Only an explicit, supported choice clears a pending currency choice.
+        bill.extracted_currency = ""
     bill.save()
     return redirect("admin-bill-detail", admin_token=bill.admin_token)
+
+
+def _change_currency(bill: Bill, currency: str) -> None:
+    """Relabel every amount on the Bill in the new currency's minor units, keeping the
+    displayed numbers (#35). All-or-nothing: raises ValueError before writing anything if
+    an amount cannot be represented exactly."""
+    old = bill.currency
+    items = list(bill.line_items.all())
+    charges = list(bill.charges.all())
+    payments = list(bill.payments.all())
+
+    for it in items:
+        it.amount_minor = rescale_minor(it.amount_minor, old, currency)
+        it.item_discount_minor = rescale_minor(it.item_discount_minor, old, currency)
+    for ch in charges:
+        ch.amount_minor = rescale_minor(ch.amount_minor, old, currency)
+    for p in payments:
+        p.amount_minor = rescale_minor(p.amount_minor, old, currency)
+    printed_total = rescale_minor(bill.printed_total_minor, old, currency)
+
+    with transaction.atomic():
+        LineItem.objects.bulk_update(items, ["amount_minor", "item_discount_minor"])
+        BillCharge.objects.bulk_update(charges, ["amount_minor"])
+        Payment.objects.bulk_update(payments, ["amount_minor"])
+        bill.printed_total_minor = printed_total
+        bill.currency = currency
+        bill.save()
 
 
 def _handle_add_item(request: HttpRequest, bill: Bill) -> HttpResponse:
