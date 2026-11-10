@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 from django_ratelimit.decorators import ratelimit
 
+from core.telemetry import bills_locked_counter, tracer
 from receipts.extraction import get_extractor
 from receipts.images import prepare_image
 from receipts.validation import run_extraction
@@ -131,7 +132,8 @@ def upload(request: HttpRequest) -> HttpResponse:
         return render(request, "bills/upload.html", {"error": "File too large (max 10 MB)."})
 
     try:
-        image_data = prepare_image(file.read())
+        with tracer.start_as_current_span("receipt.prepare_image"):
+            image_data = prepare_image(file.read())
     except ValueError:
         return render(
             request,
@@ -142,6 +144,15 @@ def upload(request: HttpRequest) -> HttpResponse:
     extractor = get_extractor()
     result = run_extraction(image_data, extractor)
 
+    with tracer.start_as_current_span("bill.persist") as span:
+        bill = _create_bill_from_extraction(result, image_data)
+        span.set_attribute("splitsnap.bill.line_items", bill.line_items.count())
+        span.set_attribute("splitsnap.bill.currency", bill.currency)
+    logger.info("bill.created", extra={"bill_id": str(bill.id), "currency": bill.currency})
+    return redirect("admin-bill-detail", admin_token=bill.admin_token)
+
+
+def _create_bill_from_extraction(result, image_data: bytes) -> Bill:
     now = timezone.now()
     bill = Bill.objects.create(
         title=result.receipt.title,
@@ -182,9 +193,7 @@ def upload(request: HttpRequest) -> HttpResponse:
             continue
         kind = charge.kind if charge.kind in dict(ChargeKind.choices) else "other"
         BillCharge.objects.create(bill=bill, kind=kind, label=charge.label, amount_minor=amount)
-
-    logger.info("bill.created", extra={"bill_id": str(bill.id), "currency": bill.currency})
-    return redirect("admin-bill-detail", admin_token=bill.admin_token)
+    return bill
 
 
 # --- Admin detail ---
@@ -454,7 +463,15 @@ def _handle_lock(request: HttpRequest, bill: Bill) -> HttpResponse:
     bill.locked_at = now
     bill.expires_at = now + datetime.timedelta(days=30)
     bill.save(update_fields=["status", "locked_at", "expires_at"])
-    logger.info("bill.locked", extra={"bill_id": str(bill.id)})
+    bills_locked_counter.add(1)
+    logger.info(
+        "bill.locked",
+        extra={
+            "bill_id": str(bill.id),
+            "participants": len(shares.owed),
+            "transfers": len(transfers),
+        },
+    )
     return redirect("admin-bill-detail", admin_token=bill.admin_token)
 
 
