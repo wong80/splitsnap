@@ -1,6 +1,9 @@
+import io
+
 import pytest
 from django.core.signing import get_cookie_signer
 from django.test import Client
+from PIL import Image
 
 from bills.models import (
     Bill,
@@ -82,6 +85,69 @@ class TestUpload:
         resp = client.post("/")
         assert resp.status_code == 200
         assert b"select a file" in resp.content.lower()
+
+
+class TestUnsupportedCurrencyRegression:
+    """Regression for incident #31: a receipt in an unsupported currency (INR) made every
+    organizer page return 500. Plan decision D14: the Bill must render, warn, and block
+    Confirm until the organizer picks a supported currency."""
+
+    @pytest.fixture
+    def inr_upload(self, monkeypatch, settings, tmp_path, client, db):
+        monkeypatch.setenv("RECEIPT_EXTRACTOR", "demo")
+        monkeypatch.setenv("DEMO_RECEIPT", "demo_receipt_inr")
+        settings.MEDIA_ROOT = tmp_path
+        buf = io.BytesIO()
+        Image.new("RGB", (32, 32), "white").save(buf, format="PNG")
+        buf.seek(0)
+        buf.name = "receipt.png"
+        resp = client.post("/", {"receipt": buf})
+        assert resp.status_code == 302
+        return resp["Location"], Bill.objects.get()
+
+    def test_organizer_page_renders_with_warning(self, client, inr_upload):
+        admin_url, bill = inr_upload
+        resp = client.get(admin_url)
+        assert resp.status_code == 200
+        assert b'id="currency-warning"' in resp.content
+        assert b"INR" in resp.content
+        assert bill.extracted_currency == "INR"
+        assert bill.currency == "MYR"  # placeholder only
+        assert bill.needs_currency_choice
+
+    def test_confirm_is_blocked_until_a_currency_is_picked(self, client, inr_upload):
+        admin_url, bill = inr_upload
+        client.post(admin_url, {"action": "confirm"})
+        bill.refresh_from_db()
+        assert bill.status == BillStatus.REVIEW
+
+        # Saving other fields without choosing a currency keeps the block.
+        client.post(admin_url, {"action": "update_bill", "title": "Dosa", "currency": ""})
+        bill.refresh_from_db()
+        assert bill.needs_currency_choice
+
+        client.post(admin_url, {"action": "update_bill", "title": "Dosa", "currency": "sgd"})
+        bill.refresh_from_db()
+        assert bill.currency == "SGD"
+        assert not bill.needs_currency_choice
+
+        client.post(admin_url, {"action": "confirm"})
+        bill.refresh_from_db()
+        assert bill.status == BillStatus.OPEN
+        assert b'id="currency-warning"' not in client.get(admin_url).content
+
+    def test_supported_currency_is_not_flagged(self, client, monkeypatch, settings, tmp_path, db):
+        monkeypatch.setenv("RECEIPT_EXTRACTOR", "demo")
+        monkeypatch.delenv("DEMO_RECEIPT", raising=False)
+        settings.MEDIA_ROOT = tmp_path
+        buf = io.BytesIO()
+        Image.new("RGB", (32, 32), "white").save(buf, format="PNG")
+        buf.seek(0)
+        buf.name = "receipt.png"
+        client.post("/", {"receipt": buf})
+        bill = Bill.objects.get()
+        assert bill.currency == "MYR"
+        assert bill.extracted_currency == ""
 
 
 class TestReviewConfirm:

@@ -7,13 +7,25 @@
 {% if bill.status == "review" %}
 <div class="section">
     <h2>Review &amp; Edit</h2>
+    {% if bill.needs_currency_choice %}
+    <div class="gap-banner nonzero" role="alert" id="currency-warning">
+        This receipt is in <strong>{{ bill.extracted_currency }}</strong>, which SplitSnap does not support yet.
+        The amounts below are the numbers printed on the receipt. Check them, then pick the currency you
+        will settle in before confirming.
+    </div>
+    {% endif %}
     <form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_bill">
         <label>Title <input name="title" value="{{ bill.title }}"></label>
-        <label>Currency <input name="currency" value="{{ bill.currency }}" maxlength="3"></label>
+        <label>Currency
+            <select name="currency"{% if bill.needs_currency_choice %} required{% endif %}>
+                {% if bill.needs_currency_choice %}<option value="" selected>Pick a currency</option>{% endif %}
+                {% for code in currencies %}<option value="{{ code }}"{% if code == bill.currency and not bill.needs_currency_choice %} selected{% endif %}>{{ code }}</option>{% endfor %}
+            </select>
+        </label>
         <label>Printed Total <input name="printed_total" value="{{ printed_total_display }}"></label>
         <button type="submit">Save</button>
     </form>
-    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="confirm"><button type="submit">Confirm &amp; Open</button></form>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="confirm"><button type="submit"{% if bill.needs_currency_choice %} disabled title="Pick a supported currency first"{% endif %}>Confirm &amp; Open</button></form>
 </div>
 {% endif %}
 

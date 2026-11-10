@@ -14,6 +14,7 @@ from django_ratelimit.decorators import ratelimit
 from core.telemetry import bills_locked_counter, tracer
 from receipts.extraction import get_extractor
 from receipts.images import prepare_image
+from receipts.schema import is_supported_currency
 from receipts.validation import run_extraction
 from splitting.engine import Charge, Item, PaymentEntry, compute_shares
 from splitting.money import CURRENCIES, to_display, to_minor
@@ -94,6 +95,7 @@ def _bill_context(bill: Bill) -> dict:
         "can_lock": can_lock,
         "all_claimed": all_claimed,
         "charge_kinds": ChargeKind.choices,
+        "currencies": sorted(CURRENCIES),
     }
 
 
@@ -148,15 +150,27 @@ def upload(request: HttpRequest) -> HttpResponse:
         bill = _create_bill_from_extraction(result, image_data)
         span.set_attribute("splitsnap.bill.line_items", bill.line_items.count())
         span.set_attribute("splitsnap.bill.currency", bill.currency)
-    logger.info("bill.created", extra={"bill_id": str(bill.id), "currency": bill.currency})
+    logger.info(
+        "bill.created",
+        extra={
+            "bill_id": str(bill.id),
+            "currency": bill.currency,
+            "needs_currency_choice": bill.needs_currency_choice,
+        },
+    )
     return redirect("admin-bill-detail", admin_token=bill.admin_token)
 
 
 def _create_bill_from_extraction(result, image_data: bytes) -> Bill:
     now = timezone.now()
+    raw_currency = result.receipt.currency.upper()
+    supported = is_supported_currency(raw_currency)
+    # An unsupported currency is kept on the side and blocks Confirm until the organizer
+    # picks one (D14). MYR is only a placeholder so amounts can be shown meanwhile.
     bill = Bill.objects.create(
         title=result.receipt.title,
-        currency=result.receipt.currency.upper(),
+        currency=raw_currency if supported else "MYR",
+        extracted_currency="" if supported else raw_currency,
         status=BillStatus.REVIEW,
         extraction_attempts=result.attempts,
         prompt_version="extract_v1",
@@ -301,12 +315,14 @@ def share_summary(request: HttpRequest, share_token: str) -> HttpResponse:
 
 def _handle_update_bill(request: HttpRequest, bill: Bill) -> HttpResponse:
     title = request.POST.get("title", bill.title)
-    currency = request.POST.get("currency", bill.currency).upper()
+    currency = request.POST.get("currency", "").strip().upper()
     printed_total = request.POST.get("printed_total", "")
 
     bill.title = title
     if currency in CURRENCIES:
+        # Only an explicit, supported choice clears a pending currency choice.
         bill.currency = currency
+        bill.extracted_currency = ""
     if printed_total:
         with contextlib.suppress(ValueError):
             bill.printed_total_minor = to_minor(printed_total, bill.currency)
@@ -410,7 +426,7 @@ def _handle_delete_payment(request: HttpRequest, bill: Bill) -> HttpResponse:
 
 
 def _handle_confirm(request: HttpRequest, bill: Bill) -> HttpResponse:
-    if bill.status == BillStatus.REVIEW:
+    if bill.status == BillStatus.REVIEW and not bill.needs_currency_choice:
         bill.status = BillStatus.OPEN
         bill.save(update_fields=["status"])
     return redirect("admin-bill-detail", admin_token=bill.admin_token)
