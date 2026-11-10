@@ -2,7 +2,7 @@
 {% block title %}{{ bill.title|default:"Bill" }} — SplitSnap{% endblock %}
 {% block content %}
 <h1>{{ bill.title|default:"Untitled Bill" }}</h1>
-<p>Status: <strong>{{ bill.get_status_display }}</strong> · Currency: {{ bill.currency }}</p>
+<p>Status: <strong>{{ bill.get_status_display }}</strong> · Currency: {% if bill.needs_currency_choice %}<strong>not chosen</strong> (receipt says {{ bill.extracted_currency }}){% else %}{{ bill.currency }}{% endif %}</p>
 
 {% if bill.status == "review" %}
 <div class="section">
