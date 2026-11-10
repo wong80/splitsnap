@@ -62,6 +62,12 @@ compose() {
 # --- shared ops stack (telemetry + alerting) ---
 docker network inspect splitsnap-ops >/dev/null 2>&1 || docker network create splitsnap-ops >/dev/null
 if [[ -f "$ROOT/deploy/compose.ops.yaml" ]]; then
+  # Shared secret between Grafana's webhook and ops/alert_relay.py (which reads the same file).
+  if [[ ! -f "$STATE/relay.token" ]]; then
+    (umask 077; head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 40 > "$STATE/relay.token")
+  fi
+  export ALERT_RELAY_TOKEN
+  ALERT_RELAY_TOKEN="$(cat "$STATE/relay.token")"
   log "ensuring ops stack (Grafana LGTM) is up"
   docker compose -p splitsnap-ops -f "$ROOT/deploy/compose.ops.yaml" up -d --wait --wait-timeout 180
 fi

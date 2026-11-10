@@ -57,7 +57,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["splitting", "receipts", "bills", "core"]
+source = ["splitting", "receipts", "bills", "core", "ops"]
 omit = ["*/migrations/*", "*/tests/*", "*/management/commands/eval_*"]
 
 [tool.coverage.report]
