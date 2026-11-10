@@ -1,8 +1,10 @@
 from decimal import Decimal
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
-from splitting.money import CURRENCIES, exponent, symbol, to_display, to_minor
+from splitting.money import CURRENCIES, exponent, rescale_minor, symbol, to_display, to_minor
 
 
 class TestExponent:
@@ -83,3 +85,34 @@ class TestCurrencyWhitelist:
     def test_all_exponents_valid(self):
         for code, exp in CURRENCIES.items():
             assert exp in (0, 2), f"{code} has unexpected exponent {exp}"
+
+
+class TestRescaleMinor:
+    """#35: changing a Bill's currency must keep the amounts that are displayed."""
+
+    def test_same_exponent_is_unchanged(self):
+        assert rescale_minor(5000, "MYR", "SGD") == 5000
+
+    def test_to_zero_decimal_currency_divides(self):
+        assert rescale_minor(54000, "MYR", "JPY") == 540
+        assert rescale_minor(-200, "MYR", "KRW") == -2
+
+    def test_to_two_decimal_currency_multiplies(self):
+        assert rescale_minor(540, "JPY", "MYR") == 54000
+
+    def test_refuses_to_drop_minor_units(self):
+        with pytest.raises(ValueError, match="cannot represent"):
+            rescale_minor(5050, "MYR", "JPY")
+        with pytest.raises(ValueError, match="cannot represent"):
+            rescale_minor(-5, "MYR", "JPY")
+
+    def test_unsupported_currency_raises(self):
+        with pytest.raises(ValueError, match="Unsupported currency"):
+            rescale_minor(100, "MYR", "XXX")
+
+
+@given(st.integers(min_value=-(10**12), max_value=10**12))
+def test_rescale_round_trip_keeps_the_displayed_value(minor):
+    up = rescale_minor(minor, "JPY", "MYR")
+    assert Decimal(to_display(up, "MYR")) == Decimal(to_display(minor, "JPY"))
+    assert rescale_minor(up, "MYR", "JPY") == minor

@@ -59,5 +59,5 @@ The first version of the fix (on-call agent) replaced an unsupported currency wi
 
 ## Follow-ups
 
-- [ ] #35: changing a Bill's currency does not rescale minor units between exponents (e.g. MYR to JPY)
+- [x] #35: changing a Bill's currency now rescales minor units between exponents (e.g. MYR to JPY), or is refused if precision would be lost. Fixed in this PR.
 - [ ] Consider adding INR to the supported currency whitelist if there is demand

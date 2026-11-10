@@ -75,6 +75,25 @@ def to_display(minor: int, currency: str) -> str:
     return f"{sign}{whole}.{frac:0{exp}d}"
 
 
+def rescale_minor(minor: int, from_currency: str, to_currency: str) -> int:
+    """Re-express a minor-unit amount in another currency's exponent, keeping the same
+    displayed number (5000 MYR sen = "50.00" -> 50 JPY = "50").
+
+    No exchange rate is applied: this is for relabelling a Bill's currency during review.
+    Raises ValueError if the target currency cannot represent the amount exactly.
+    """
+    shift = exponent(to_currency) - exponent(from_currency)
+    if shift >= 0:
+        return minor * 10**shift
+    factor = 10**-shift
+    if minor % factor:
+        raise ValueError(
+            f"{to_currency.upper()} cannot represent {to_display(minor, from_currency)} "
+            f"{from_currency.upper()} exactly"
+        )
+    return minor // factor
+
+
 def symbol(currency: str) -> str:
     currency = currency.upper()
     return CURRENCY_SYMBOLS.get(currency, currency)

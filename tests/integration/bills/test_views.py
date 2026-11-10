@@ -14,6 +14,7 @@ from bills.models import (
     Participant,
     Payment,
 )
+from splitting.money import to_display
 
 
 @pytest.fixture
@@ -173,6 +174,113 @@ class TestReviewConfirm:
         assert review_bill.title == "New Title"
         assert review_bill.currency == "SGD"
         assert review_bill.printed_total_minor == 5000
+
+
+class TestCurrencyChangeRescalesAmounts:
+    """#35: changing currency keeps every displayed amount, or is refused outright."""
+
+    @pytest.fixture
+    def priced_bill(self, review_bill):
+        alice = Participant.objects.create(bill=review_bill, name="Alice")
+        LineItem.objects.create(
+            bill=review_bill,
+            position=1,
+            description="Ramen",
+            amount_minor=120000,
+            item_discount_minor=10000,
+        )
+        BillCharge.objects.create(bill=review_bill, kind="tax", amount_minor=8000)
+        BillCharge.objects.create(bill=review_bill, kind="discount", amount_minor=-3000)
+        Payment.objects.create(bill=review_bill, participant=alice, amount_minor=115000)
+        review_bill.printed_total_minor = 115000
+        review_bill.save()
+        return review_bill
+
+    def _displayed(self, bill):
+        bill.refresh_from_db()
+        item = bill.line_items.get()
+        return {
+            "item": to_display(item.amount_minor, bill.currency),
+            "discount": to_display(item.item_discount_minor, bill.currency),
+            "charges": sorted(
+                to_display(c.amount_minor, bill.currency) for c in bill.charges.all()
+            ),
+            "payment": to_display(bill.payments.get().amount_minor, bill.currency),
+            "total": to_display(bill.printed_total_minor, bill.currency),
+        }
+
+    def _change(self, client, bill, currency, total):
+        return client.post(
+            f"/b/{bill.admin_token}/",
+            {
+                "action": "update_bill",
+                "title": bill.title,
+                "currency": currency,
+                "printed_total": total,
+            },
+            follow=True,
+        )
+
+    def test_round_trip_to_zero_decimal_currency_keeps_displayed_amounts(
+        self, client, priced_bill
+    ):
+        self._change(client, priced_bill, "JPY", "1150.00")
+        assert self._displayed(priced_bill) == {
+            "item": "1200",
+            "discount": "100",
+            "charges": ["-30", "80"],
+            "payment": "1150",
+            "total": "1150",
+        }
+        assert priced_bill.currency == "JPY"
+
+        self._change(client, priced_bill, "MYR", "1150")
+        assert self._displayed(priced_bill) == {
+            "item": "1200.00",
+            "discount": "100.00",
+            "charges": ["-30.00", "80.00"],
+            "payment": "1150.00",
+            "total": "1150.00",
+        }
+        assert priced_bill.currency == "MYR"
+
+    def test_change_that_would_lose_precision_is_refused(self, client, priced_bill):
+        LineItem.objects.create(
+            bill=priced_bill, position=2, description="Gyoza", amount_minor=1250
+        )
+        before = sorted(priced_bill.line_items.values_list("amount_minor", flat=True))
+        resp = self._change(client, priced_bill, "JPY", "1150.00")
+
+        priced_bill.refresh_from_db()
+        assert priced_bill.currency == "MYR"
+        assert sorted(priced_bill.line_items.values_list("amount_minor", flat=True)) == before
+        assert priced_bill.printed_total_minor == 115000
+        assert b"Currency not changed" in resp.content
+        assert b"JPY cannot represent 12.50 MYR exactly" in resp.content
+
+    def test_currency_change_only_allowed_in_review(self, client, priced_bill):
+        priced_bill.status = BillStatus.OPEN
+        priced_bill.save()
+        resp = self._change(client, priced_bill, "SGD", "1150.00")
+        priced_bill.refresh_from_db()
+        assert priced_bill.currency == "MYR"
+        assert b"only be changed while in review" in resp.content
+
+    def test_picking_a_currency_for_an_unsupported_receipt_keeps_printed_numbers(
+        self, client, review_bill
+    ):
+        LineItem.objects.create(
+            bill=review_bill, position=1, description="Masala Dosa", amount_minor=32000
+        )
+        review_bill.printed_total_minor = 32000
+        review_bill.extracted_currency = "INR"
+        review_bill.save()
+        self._change(client, review_bill, "JPY", "320.00")
+        review_bill.refresh_from_db()
+        assert review_bill.currency == "JPY"
+        assert not review_bill.needs_currency_choice
+        assert to_display(review_bill.line_items.get().amount_minor, "JPY") == "320"
+        assert to_display(review_bill.printed_total_minor, "JPY") == "320"
 
 
 class TestItemManagement:

@@ -31,6 +31,9 @@
     </style>
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    {% for message in messages %}
+    <div class="gap-banner {% if message.level_tag == 'error' %}nonzero{% else %}zero{% endif %}" role="alert">{{ message }}</div>
+    {% endfor %}
     {% block content %}{% endblock %}
 </body>
 </html>
