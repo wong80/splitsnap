@@ -8,7 +8,7 @@
 | **Environment** | local (on-call drill) |
 | **Detected** | Alert fired after 2-minute sustained 5xx ratio |
 | **Resolved** | Fix PR opened with regression tests |
-| **Responder** | On-call agent (Claude Code) |
+| **Responder** | On-call agent (Claude Code); revised after Reviewer agent feedback |
 
 ## Impact
 
@@ -38,16 +38,26 @@ This violates plan decision D14: "An unknown currency blocks the bill until the 
 
 ## Fix
 
-In `_create_bill_from_extraction`, the currency is now validated with `is_supported_currency()` before being stored. If the extracted currency is not in the whitelist, the bill falls back to `"MYR"` (the default). The bill is created in REVIEW status, so the organizer can correct the currency via the review form.
+The first version of the fix (on-call agent) replaced an unsupported currency with `"MYR"`. That stopped the 500s, but review found it silently relabelled amounts: INR 500.00 became RM 500.00 with no warning. The final fix follows D14:
 
-### Regression tests added
+- `Bill.extracted_currency` (migration `0003`) records the receipt's currency when it is not supported. `Bill.currency` holds `MYR` only as a placeholder, so pages render.
+- The review page shows a warning naming the receipt currency. The currency field becomes a picker with no preselected value.
+- `confirm` is refused (and the button disabled) while a currency choice is pending. Only an explicit supported choice in `update_bill` clears it.
+- `bill.created` logs `needs_currency_choice` (a boolean; no receipt contents).
 
-- `test_bill_with_unsupported_currency_falls_back`: verifies `_create_bill_from_extraction` stores `"MYR"` when the extraction returns `"INR"`.
-- `test_admin_page_renders_for_unsupported_currency_bill`: verifies the admin page returns 200, not 500.
-- `test_admin_page_500_without_fix_scenario`: confirms `exponent("INR")` still raises, so the whitelist is enforced at the money layer.
+### Regression tests
+
+`tests/integration/bills/test_views.py::TestUnsupportedCurrencyRegression` goes through HTTP with the INR demo receipt:
+
+- `test_organizer_page_renders_with_warning`: upload, then the organizer page returns 200 and shows the warning
+- `test_confirm_is_blocked_until_a_currency_is_picked`: confirm is refused; saving without a choice keeps the block; picking SGD clears it; confirm then succeeds
+- `test_supported_currency_is_not_flagged`: MYR receipts are unaffected
+
+### Alert behaviour after the fix
+
+`HighServerErrorRate` resolves, because the pages render. `ReceiptExtractionFailing` keeps counting `unsupported_currency` as a failed extraction, by design: those organizers still can't use the currency on their receipt, which is real user impact.
 
 ## Follow-ups
 
-- [ ] Show a warning banner on the review page when the extraction's original currency was replaced
-- [ ] Consider adding INR to the supported currency whitelist if there is user demand
-- [ ] Add a model-level `clean()` constraint on `Bill.currency` to reject unsupported values at the DB layer
+- [ ] #35: changing a Bill's currency does not rescale minor units between exponents (e.g. MYR to JPY)
+- [ ] Consider adding INR to the supported currency whitelist if there is demand

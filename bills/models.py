@@ -35,6 +35,10 @@ class Bill(models.Model):
     share_token = models.CharField(max_length=64, unique=True, default=generate_token)
     title = models.CharField(max_length=200, blank=True, default="")
     currency = models.CharField(max_length=3, default="MYR")
+    # Currency printed on the receipt when it is not in splitting.money.CURRENCIES.
+    # While set, the Bill cannot be confirmed until the organizer picks a supported currency
+    # (plan decision D14); `currency` holds a placeholder so pages can still render.
+    extracted_currency = models.CharField(max_length=8, blank=True, default="")
     status = models.CharField(
         max_length=20, choices=BillStatus.choices, default=BillStatus.EXTRACTING
     )
@@ -51,6 +55,10 @@ class Bill(models.Model):
 
     def __str__(self) -> str:
         return self.title or str(self.id)[:8]
+
+    @property
+    def needs_currency_choice(self) -> bool:
+        return bool(self.extracted_currency)
 
 
 class LineItem(models.Model):
