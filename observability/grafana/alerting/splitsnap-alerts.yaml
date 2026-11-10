@@ -23,7 +23,7 @@ groups:
               refId: A
               instant: true
               expr: >-
-                sum by (deployment_environment_name) (rate(splitsnap_extraction_total{outcome=~"error|unsupported_currency"}[5m]))
+                sum by (deployment_environment_name) (rate(splitsnap_extraction_total{outcome="error"}[5m]))
                 / sum by (deployment_environment_name) (rate(splitsnap_extraction_total[5m]))
           - refId: C
             datasourceUid: __expr__
@@ -40,7 +40,9 @@ groups:
           summary: "Receipt extraction is failing for more than 20% of uploads in {{ $labels.deployment_environment_name }}"
           description: >-
             More than 20% of receipt uploads in {{ $labels.deployment_environment_name }} ended in
-            error or unsupported_currency over the last 5 minutes. Users cannot create bills.
+            outcome=error (the model call or its response failed) over the last 5 minutes.
+            Organizers cannot turn receipts into bills. Unsupported currencies are not counted:
+            since #31 the organizer is asked to pick a currency, which is handled, not a failure.
           runbook_url: https://github.com/wong80/splitsnap/blob/main/docs/runbooks/ReceiptExtractionFailing.md
           dashboard: "/d/splitsnap"
 

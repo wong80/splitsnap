@@ -44,8 +44,9 @@ def row(title, y):
 
 
 # "or vector(0)" keeps the ratio at 0 (not "No data") when there are no failures.
+# Only outcome="error" is a failure; unsupported_currency is a handled path (#30, #31).
 failure_ratio = (
-    f'(sum(rate(splitsnap_extraction_total{{outcome=~"error|unsupported_currency",{ENV}}}[5m])) or vector(0))'
+    f'(sum(rate(splitsnap_extraction_total{{outcome="error",{ENV}}}[5m])) or vector(0))'
     f" / clamp_min(sum(rate(splitsnap_extraction_total{{{ENV}}}[5m])), 1e-9)"
 )
 error_5xx_ratio = (
@@ -72,7 +73,7 @@ panels = [
         5,
         [prom(failure_ratio, "failure ratio")],
         unit="percentunit",
-        desc="error + unsupported_currency over all extractions (5m). Alert > 20%.",
+        desc="outcome=error over all extractions (5m). Alert > 20%.",
         fieldConfig={
             "defaults": {
                 "unit": "percentunit",
@@ -122,9 +123,24 @@ panels = [
         "stat",
         0,
         6,
-        6,
+        3,
         3,
         [prom(f"sum(increase(splitsnap_bills_locked_total{{{ENV}}}[1h]))", "locked")],
+    ),
+    panel(
+        "Unsupported currency (1h)",
+        "stat",
+        3,
+        6,
+        3,
+        3,
+        [
+            prom(
+                f'sum(increase(splitsnap_extraction_total{{outcome="unsupported_currency",{ENV}}}[1h])) or vector(0)',
+                "receipts",
+            )
+        ],
+        desc="Receipts whose currency the organizer had to replace. Product signal, not an alert.",
     ),
     row("HTTP (RED)", 9),
     panel(

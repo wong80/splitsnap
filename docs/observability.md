@@ -29,7 +29,7 @@ logs:  receipt.extraction.completed {outcome, attempts, gap, latency_ms, trace_i
 
 | Metric (Prometheus name) | Type | Labels | Meaning |
 |---|---|---|---|
-| `splitsnap_extraction_total` | counter | `outcome` = `match`, `mismatch`, `unsupported_currency` or `error` | Extractions by result |
+| `splitsnap_extraction_total` | counter | `outcome` = `match`, `mismatch`, `unsupported_currency` or `error` | Extractions by result. Only `error` counts as a failure for alerting. |
 | `splitsnap_extraction_duration_seconds` | histogram | `outcome` | End-to-end extraction time, including the retry. The spec target is p95 < 30 s. |
 | `splitsnap_bills_locked_total` | counter | – | Bills that reached a settlement |
 | `http_server_request_duration_seconds` | histogram | `http_route`, `http_request_method`, `http_response_status_code` | RED metrics from the Django instrumentation |
@@ -64,7 +64,7 @@ Guardrail 3 in [AGENTS.md](../AGENTS.md) is enforced in code and by a test:
 
 | Row | Panels |
 |---|---|
-| Receipt upload journey | Extraction failure ratio, extractions/min by outcome, extraction p50/p95, bills locked |
+| Receipt upload journey | Extraction failure ratio (`error` only), extractions/min by outcome, extraction p50/p95, bills locked, unsupported-currency receipts |
 | HTTP (RED) | Requests/s by route and status, 5xx ratio, p95 latency by route |
 | Correlated logs and traces | Live application logs (with trace links), recent `receipt.extract` traces |
 
@@ -84,7 +84,7 @@ The dev stack runs a `probe` container that walks the full journey every 60 s (`
 G=http://localhost:3030   # 3000 for local compose
 # Prometheus: extraction failure ratio
 curl -s -G "$G/api/datasources/proxy/uid/prometheus/api/v1/query" \
-  --data-urlencode 'query=sum(rate(splitsnap_extraction_total{outcome=~"error|unsupported_currency"}[5m]))'
+  --data-urlencode 'query=sum(rate(splitsnap_extraction_total{outcome="error"}[5m]))'
 # Loki: recent errors with their trace IDs
 curl -s -G "$G/api/datasources/proxy/uid/loki/loki/api/v1/query_range" \
   --data-urlencode 'query={service_name="splitsnap", severity_text="ERROR"}' --data-urlencode 'limit=20'
