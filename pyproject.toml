@@ -43,6 +43,10 @@ DJANGO_SETTINGS_MODULE = "config.settings.dev"
 python_files = ["test_*.py"]
 pythonpath = ["."]
 addopts = "--strict-markers -q"
+markers = [
+    "unit: pure logic, no database (tests/unit)",
+    "integration: Django client + database (tests/integration)",
+]
 
 [tool.coverage.run]
 source = ["splitting", "receipts", "bills", "core"]

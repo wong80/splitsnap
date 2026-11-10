@@ -1,0 +1,40 @@
+# One command for the whole system:  docker compose up --build
+name: splitsnap
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: splitsnap
+      POSTGRES_USER: splitsnap
+      POSTGRES_PASSWORD: splitsnap
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U splitsnap -d splitsnap"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: .
+    image: splitsnap:local
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://splitsnap:splitsnap@db:5432/splitsnap
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-compose-insecure-key}
+      ALLOWED_HOSTS: localhost,127.0.0.1,web
+      HTTPS_ONLY: "false"
+      DEPLOY_ENV: local
+      RECEIPT_EXTRACTOR: ${RECEIPT_EXTRACTOR:-demo}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    volumes:
+      - media:/data/media
+
+volumes:
+  pgdata:
+  media:
