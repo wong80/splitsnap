@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ bill.title|default:"Bill" }} — SplitSnap{% endblock %}
+{% load money %}
 {% block content %}
 <h1>{{ bill.title|default:"Untitled Bill" }}</h1>
 <p>Status: <strong>{{ bill.get_status_display }}</strong> · Currency: {% if bill.needs_currency_choice %}<strong>not chosen</strong> (receipt says {{ bill.extracted_currency }}){% else %}{{ bill.currency }}{% endif %}</p>
@@ -47,8 +48,8 @@
         <tr>
             <td>{{ item.description }}</td>
             <td>{{ item.quantity }}</td>
-            <td>{{ item.amount_minor }}</td>
-            <td>{{ item.item_discount_minor }}</td>
+            <td>{{ item.amount_minor|money:bill.currency }}</td>
+            <td>{{ item.item_discount_minor|money:bill.currency }}</td>
             <td>{% for c in item.claims.all %}{{ c.participant.name }}({{ c.weight }}) {% endfor %}</td>
             <td><form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="delete_item"><input type="hidden" name="item_id" value="{{ item.id }}"><button type="submit" class="danger">×</button></form></td>
         </tr>
@@ -73,7 +74,7 @@
         <tr>
             <td>{{ charge.get_kind_display }}</td>
             <td>{{ charge.label }}</td>
-            <td>{{ charge.amount_minor }}</td>
+            <td>{{ charge.amount_minor|money:bill.currency }}</td>
             <td><form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="delete_charge"><input type="hidden" name="charge_id" value="{{ charge.id }}"><button type="submit" class="danger">×</button></form></td>
         </tr>
         {% endfor %}
@@ -106,7 +107,7 @@
         {% for p in payments %}
         <tr>
             <td>{{ p.participant.name }}</td>
-            <td>{{ p.amount_minor }}</td>
+            <td>{{ p.amount_minor|money:bill.currency }}</td>
             <td><form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="action" value="delete_payment"><input type="hidden" name="payment_id" value="{{ p.id }}"><button type="submit" class="danger">×</button></form></td>
         </tr>
         {% endfor %}

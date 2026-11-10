@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ bill.title|default:"Bill" }} — SplitSnap{% endblock %}
+{% load money %}
 {% block content %}
 <h1>{{ bill.title|default:"Untitled Bill" }}</h1>
 
@@ -36,7 +37,7 @@
         <tr>
             <td>{{ item.description }}</td>
             <td>{{ item.quantity }}</td>
-            <td>{{ item.amount_minor }}</td>
+            <td>{{ item.amount_minor|money:bill.currency }}</td>
             <td>{% for c in item.claims.all %}{{ c.participant.name }}({{ c.weight }}) {% endfor %}</td>
             {% if participant %}
             <td>
