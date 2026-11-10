@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Incident issue** | #31 |
-| **Fix PR** | (this PR) |
+| **Fix PR** | #32 |
 | **Alert** | HighServerErrorRate |
 | **Environment** | local (on-call drill) |
 | **Detected** | Alert fired after 2-minute sustained 5xx ratio |
@@ -55,7 +55,7 @@ The first version of the fix (on-call agent) replaced an unsupported currency wi
 
 ### Alert behaviour after the fix
 
-`HighServerErrorRate` resolves, because the pages render. `ReceiptExtractionFailing` keeps counting `unsupported_currency` as a failed extraction, by design: those organizers still can't use the currency on their receipt, which is real user impact.
+`HighServerErrorRate` resolves, because the pages render. `ReceiptExtractionFailing` originally also counted `unsupported_currency`, so it would keep paging for a path that is now handled. #30 narrowed it to `outcome="error"`. Unsupported-currency volume is now a dashboard stat instead.
 
 ## Follow-ups
 

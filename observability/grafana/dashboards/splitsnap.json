@@ -54,7 +54,7 @@
     {
       "id": 2,
       "title": "Extraction failure ratio",
-      "description": "error + unsupported_currency over all extractions (5m). Alert > 20%.",
+      "description": "outcome=error over all extractions (5m). Alert > 20%.",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -72,7 +72,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(sum(rate(splitsnap_extraction_total{outcome=~\"error|unsupported_currency\",deployment_environment_name=~\"$env\"}[5m])) or vector(0)) / clamp_min(sum(rate(splitsnap_extraction_total{deployment_environment_name=~\"$env\"}[5m])), 1e-9)",
+          "expr": "(sum(rate(splitsnap_extraction_total{outcome=\"error\",deployment_environment_name=~\"$env\"}[5m])) or vector(0)) / clamp_min(sum(rate(splitsnap_extraction_total{deployment_environment_name=~\"$env\"}[5m])), 1e-9)",
           "legendFormat": "failure ratio",
           "refId": "A"
         }
@@ -192,7 +192,7 @@
       "gridPos": {
         "x": 0,
         "y": 6,
-        "w": 6,
+        "w": 3,
         "h": 3
       },
       "targets": [
@@ -214,6 +214,38 @@
     },
     {
       "id": 6,
+      "title": "Unsupported currency (1h)",
+      "description": "Receipts whose currency the organizer had to replace. Product signal, not an alert.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 3,
+        "y": 6,
+        "w": 3,
+        "h": 3
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(increase(splitsnap_extraction_total{outcome=\"unsupported_currency\",deployment_environment_name=~\"$env\"}[1h])) or vector(0)",
+          "legendFormat": "receipts",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 7,
       "type": "row",
       "title": "HTTP (RED)",
       "collapsed": false,
@@ -226,7 +258,7 @@
       "panels": []
     },
     {
-      "id": 7,
+      "id": 8,
       "title": "Requests / s by route and status",
       "description": "",
       "type": "timeseries",
@@ -260,7 +292,7 @@
       "options": {}
     },
     {
-      "id": 8,
+      "id": 9,
       "title": "5xx ratio",
       "description": "Alert > 5% for 5m.",
       "type": "timeseries",
@@ -294,7 +326,7 @@
       "options": {}
     },
     {
-      "id": 9,
+      "id": 10,
       "title": "p95 latency by route",
       "description": "",
       "type": "timeseries",
@@ -328,7 +360,7 @@
       "options": {}
     },
     {
-      "id": 10,
+      "id": 11,
       "type": "row",
       "title": "Correlated logs and traces",
       "collapsed": false,
@@ -341,7 +373,7 @@
       "panels": []
     },
     {
-      "id": 11,
+      "id": 12,
       "title": "Application logs (click trace_id to open the trace)",
       "description": "",
       "type": "logs",
@@ -377,7 +409,7 @@
       }
     },
     {
-      "id": 12,
+      "id": 13,
       "title": "Recent receipt extraction traces",
       "description": "",
       "type": "table",

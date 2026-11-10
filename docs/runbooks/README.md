@@ -4,7 +4,7 @@ One runbook per alert. Each alert's `runbook_url` annotation links here, and the
 
 | Alert | Fires when | Runbook |
 |---|---|---|
-| `ReceiptExtractionFailing` | More than 20% of extractions end in `error` or `unsupported_currency` over 5 min, sustained for 2 min | [ReceiptExtractionFailing.md](ReceiptExtractionFailing.md) |
+| `ReceiptExtractionFailing` | More than 20% of extractions end in `error` over 5 min, sustained for 2 min | [ReceiptExtractionFailing.md](ReceiptExtractionFailing.md) |
 | `HighServerErrorRate` | 5xx responses are above 5% of requests over 5 min, sustained for 2 min | [HighServerErrorRate.md](HighServerErrorRate.md) |
 
 ## How alerts reach the on-call agent

@@ -4,8 +4,8 @@
 |---|---|
 | **Type** | Drill (local stack, `deployment_environment_name=local`) |
 | **Incident issues** | #30 `ReceiptExtractionFailing`, #31 `HighServerErrorRate` (both opened automatically by the alert relay) |
-| **Fix PR** | Pending. The on-call agent is woken with `--wake-issue 31` once the repo owner approves running it |
-| **Status** | Detection and incident creation verified end to end. The fix is waiting on the agent run. |
+| **Fix PR** | #32 (opened by the on-call agent, revised after review), #36 (#35 follow-up), and the PR closing #30 (alert scope) |
+| **Status** | Done. Alert → relay → incident → agent → fix PR → review → merge verified end to end. |
 
 ## What was exercised
 
