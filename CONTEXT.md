@@ -29,6 +29,14 @@ _Avoid_: Receipt total, original total
 **Reconciliation Gap**:
 `sum(item net amounts) + sum(bill charge amounts) − printed total`. Must be zero before locking. A nonzero gap means the extracted data doesn't match the receipt.
 
+**Extracted Currency**:
+The currency printed on a receipt when it is not one SplitSnap supports (e.g. INR). It is kept on the Bill; until the organizer picks a supported currency, the Bill shows a warning and cannot be confirmed. The Bill's own currency is only a placeholder meanwhile.
+_Avoid_: Original currency, fallback currency
+
+**Currency change**:
+Relabelling a Bill's currency during review. Every amount is re-expressed in the new currency's minor units so the displayed numbers stay the same (RM 50.00 → ¥50); a change that would lose precision is refused. No exchange rate is ever applied.
+_Avoid_: Conversion (implies an exchange rate)
+
 **Adjustment Line**:
 A bill charge auto-prefilled with the reconciliation gap, offered as a one-click fix for small discrepancies between extraction and the printed total.
 

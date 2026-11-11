@@ -1,4 +1,5 @@
 import io
+import re
 
 import pytest
 from django.core.signing import get_cookie_signer
@@ -281,6 +282,44 @@ class TestCurrencyChangeRescalesAmounts:
         assert not review_bill.needs_currency_choice
         assert to_display(review_bill.line_items.get().amount_minor, "JPY") == "320"
         assert to_display(review_bill.printed_total_minor, "JPY") == "320"
+
+
+class TestAmountsAreFormatted:
+    """#38: tables showed raw minor units (1200) instead of amounts (12.00)."""
+
+    @pytest.fixture
+    def open_bill(self, db):
+        bill = Bill.objects.create(title="Mamak", status=BillStatus.OPEN, currency="MYR")
+        alice = Participant.objects.create(bill=bill, name="Alice")
+        LineItem.objects.create(
+            bill=bill, position=1, description="Nasi", amount_minor=1200, item_discount_minor=150
+        )
+        BillCharge.objects.create(bill=bill, kind="tax", label="SST", amount_minor=259)
+        Payment.objects.create(bill=bill, participant=alice, amount_minor=3020)
+        return bill
+
+    @staticmethod
+    def _cells(resp):
+        return re.findall(r"<td>([^<]*)</td>", resp.content.decode())
+
+    def test_organizer_page_formats_every_amount(self, client, open_bill):
+        cells = self._cells(client.get(f"/b/{open_bill.admin_token}/"))
+        for formatted in ("12.00", "1.50", "2.59", "30.20"):
+            assert formatted in cells
+        for raw in ("1200", "150", "259", "3020"):
+            assert raw not in cells
+
+    def test_friend_page_formats_item_amounts(self, client, open_bill):
+        cells = self._cells(client.get(f"/s/{open_bill.share_token}/"))
+        assert "12.00" in cells
+        assert "1200" not in cells
+
+    def test_zero_decimal_currency_has_no_decimal_point(self, client, db):
+        bill = Bill.objects.create(title="Ramen", status=BillStatus.OPEN, currency="JPY")
+        LineItem.objects.create(bill=bill, position=1, description="Ramen", amount_minor=980)
+        cells = self._cells(client.get(f"/b/{bill.admin_token}/"))
+        assert "980" in cells
+        assert "9.80" not in cells
 
 
 class TestItemManagement:

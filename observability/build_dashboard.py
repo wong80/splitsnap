@@ -166,8 +166,8 @@ panels = [
         6,
         8,
         [prom(error_5xx_ratio, "5xx")],
-        unit="percentunit",
         desc="Alert > 5% for 5m.",
+        fieldConfig={"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []},
     ),
     panel(
         "p95 latency by route",
